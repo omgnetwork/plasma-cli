@@ -448,7 +448,7 @@ func (s *standardExitUTXOData) plasmaStartStandardExit(ethereumClient string, co
 	}
 }
 
-//Make strings suitble for hex encoding
+//Make strings suitable for hex encoding
 func removeLeadingZeroX(item string) string {
 	cleanedString := strings.Replace(item, "0x", "", -1)
 	return cleanedString
