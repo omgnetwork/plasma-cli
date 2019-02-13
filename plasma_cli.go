@@ -6,7 +6,7 @@ import (
 	"crypto/ecdsa"
 	//"crypto/rand"
 	"encoding/json"
-	//"encoding/hex"
+	"encoding/hex"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -430,18 +430,28 @@ func (s *standardExitUTXOData) plasmaStartStandardExit(ethereumClient string, co
 	t.Signer = auth.Signer
 	t.Value = big.NewInt(31415926535) //STANDARD_EXIT_BOND in the smart contract
 	t.GasLimit = 2000000
-	println(s.Data.Txbytes)
-	txBytesRLP, rlperror := rlp.EncodeToBytes(s.Data.Txbytes)
-	if rlperror != nil {
-		log.Fatal(rlperror)
+
+	txBytesHex, txErr := hex.DecodeString(removeLeadingZeroX(s.Data.Txbytes))
+	if txErr != nil{
+		log.Fatal(txErr)
 	}
-	log.Info(txBytesRLP)
-	tx, err := instance.StartStandardExit(t, s.Data.UtxoPos, txBytesRLP, []byte(s.Data.Proof))
+
+	proofBytesHex, proofErr := hex.DecodeString(removeLeadingZeroX(s.Data.Proof))
+	if proofErr != nil {
+		log.Fatal(proofErr)
+	}
+	tx, err := instance.StartStandardExit(t, s.Data.UtxoPos, []byte(txBytesHex), []byte(proofBytesHex))
 	if err != nil {
 		log.Fatal(err)
 	} else {
 		log.Info("Standard exit to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
 	}
+}
+
+//Make strings suitble for hex encoding
+func removeLeadingZeroX(item string) string {
+	cleanedString := strings.Replace(item, "0x", "", -1)
+	return cleanedString
 }
 
 //Retrieve the UTXO exit data from the UTXO position
