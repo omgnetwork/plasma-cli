@@ -6,7 +6,7 @@ import (
 	"crypto/ecdsa"
 	//"crypto/rand"
 	"encoding/json"
-	//"encoding/hex"
+	"encoding/hex"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -44,7 +44,43 @@ var (
 	newowner = transaction.Flag("newowner", "New owner of the UTXO").Required().String()
 	amount = transaction.Flag("amount", "Amount to transact").Required().String()
 	signing = transaction.Flag("key", "Private key for signing the transaction").Required().String()
+	exit = kingpin.Command("exit", "Standard exit a UTXO back to the root chain.")
+	watcherExitURL = exit.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
+	contractExit = exit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
+	utxoPosition = exit.Flag("utxo", "UTXO Position that will be exited").Required().String()
+	exitPrivateKey = exit.Flag("privatekey", "Private key of the UTXO owner").Required().String()
+	clientExit = exit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 )
+
+type standardExit struct {
+	utxoPosition int
+	privateKey string
+	contract string
+	client string
+}
+
+type standardExitUTXOError struct {
+	Version string `json:"version"`
+	Success bool   `json:"success"`
+	Data    struct {
+		Object      string `json:"object"`
+		Code        string `json:"code"`
+		Description string `json:"description"`
+		Messages    struct {
+			ErrorKey string `json:"error_key"`
+		} `json:"messages"`
+	} `json:"data"`
+}
+
+type standardExitUTXOData struct {
+	Version string `json:"version"`
+	Success bool   `json:"success"`
+	Data    struct {
+		UtxoPos *big.Int  `json:"utxo_pos"`
+		Txbytes string `json:"txbytes"`
+		Proof   string `json:"proof"`
+	} `json:"data"`
+}
 
 type plasmaTransaction struct {
 	blknum int
@@ -304,6 +340,7 @@ func (u *watcherUTXOsFromAddress) displayUTXOS() {
 		log.Info("Transaction Index: ", value.Txindex)
 		log.Info("Output Index: ", value.Oindex)
 		log.Info("Currency: ", value.Currency)
+		log.Info("UTXO Position: ", value.UtxoPos)
 	}
 }
 
@@ -342,6 +379,128 @@ func convertStringToFloat64(value string) float64 {
 	return f
 }
 
+//Start a standard exit from user provided UTXO & private key
+func (s *standardExit) startStandardExit(watcher string) {
+	log.Info("Getting data needed to exit the UTXO from the Watcher")
+	exit := getUTXOExitData(watcher, s.utxoPosition)
+	exit.plasmaStartStandardExit(s.client, s.contract, s.privateKey)
+}
+
+//Start standard exit by calling the method in the smart contract
+func (s *standardExitUTXOData) plasmaStartStandardExit(ethereumClient string, contract string, private string) {
+	client, err := ethclient.Dial(ethereumClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	privateKey, err := crypto.HexToECDSA(private)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("Cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	auth := bind.NewKeyedTransactor(privateKey)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = big.NewInt(31415926535)    // in wei
+	auth.GasLimit = uint64(210000) // in units
+	auth.GasPrice = gasPrice
+
+	address := common.HexToAddress(contract)
+	instance, err := rootchain.NewRootchain(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	t := &bind.TransactOpts{}
+	t.From = fromAddress
+	t.Signer = auth.Signer
+	t.Value = big.NewInt(31415926535) //STANDARD_EXIT_BOND in the smart contract
+	t.GasLimit = 2000000
+
+	txBytesHex, txErr := hex.DecodeString(removeLeadingZeroX(s.Data.Txbytes))
+	if txErr != nil{
+		log.Fatal(txErr)
+	}
+
+	proofBytesHex, proofErr := hex.DecodeString(removeLeadingZeroX(s.Data.Proof))
+	if proofErr != nil {
+		log.Fatal(proofErr)
+	}
+	tx, err := instance.StartStandardExit(t, s.Data.UtxoPos, []byte(txBytesHex), []byte(proofBytesHex))
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Info("Standard exit to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
+	}
+}
+
+//Make strings suitable for hex encoding
+func removeLeadingZeroX(item string) string {
+	cleanedString := strings.Replace(item, "0x", "", -1)
+	return cleanedString
+}
+
+//Retrieve the UTXO exit data from the UTXO position
+func getUTXOExitData(watcher string, utxoPosition int) standardExitUTXOData {
+	// Build request
+	var url strings.Builder
+	url.WriteString(watcher)
+	url.WriteString("/utxo.get_exit_data")
+	postData := map[string]interface{}{"utxo_pos": utxoPosition}
+	js, _ := json.Marshal(postData)
+	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
+	if err != nil {
+		log.Fatal(err)
+	}
+	r.Header.Add("Content-Type", "application/json")
+
+	// Make the request
+	client := &http.Client{}
+	resp, err := client.Do(r)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Unmarshall the response
+	response := standardExitUTXOData{}
+
+	rstring, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	jsonErr := json.Unmarshal([]byte(rstring), &response)
+	if jsonErr != nil {
+		log.Warning("Could not unmarshal successful response from the Watcher")
+		errorInfo := standardExitUTXOError{}
+		processError := json.Unmarshal([]byte(rstring), &errorInfo)
+		if processError != nil { // Response from the Watcher does not match a struct
+			log.Fatal("Unknown response from Watcher API")
+			panic("uh oh")
+		}
+		log.Warning("Unmarshalled JSON error response from the Watcher API")
+		log.Error(errorInfo)
+	} else {
+		log.Info(resp.Status)
+	}
+
+	return response
+}
+
 func main() {
 	logFormatter()
 	log.Info("Starting OmiseGO Plasma MoreVP CLI")
@@ -366,5 +525,10 @@ func main() {
 		//plasma_cli transaction --block --txindex --oindex --currency --newowner --amount
 		t := plasmaTransaction{blknum: convertStringToInt(*blknum), txindex: convertStringToInt(*txindex), oindex: convertStringToInt(*oindex), cur12: *cur12, newowner: *newowner, amount: convertStringToFloat64(*amount)}
 		t.createPlasmaTransaction(*signing)
+	case exit.FullCommand():
+		//plasma_cli exit --utxo=1000000000 --privatekey=foo --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --watcher=watcher-staging.omg.network
+		s := standardExit{utxoPosition: convertStringToInt(*utxoPosition), contract: *contractExit, privateKey: *exitPrivateKey, client: *clientExit}
+		log.Info("Attempting to exit UTXO ", *utxoPosition)
+		s.startStandardExit(*watcherExitURL)
 	}
 }
