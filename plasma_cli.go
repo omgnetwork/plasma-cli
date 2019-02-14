@@ -50,7 +50,19 @@ var (
 	utxoPosition = exit.Flag("utxo", "UTXO Position that will be exited").Required().String()
 	exitPrivateKey = exit.Flag("privatekey", "Private key of the UTXO owner").Required().String()
 	clientExit = exit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
+	process = kingpin.Command("process", "Process all exits that have completed the challenge period")
+	processContract = process.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
+	processToken = process.Flag("token", "Token address to process for standard exits").Required().String()
+	processPrivateKey = process.Flag("privatekey", "Private key used to fund the gas for the smart contract call").Required().String()
+	processExitClient = process.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 )
+
+type processExit struct {
+	contract string
+	privateKey string
+	token string
+	client string
+}
 
 type standardExit struct {
 	utxoPosition int
@@ -501,6 +513,65 @@ func getUTXOExitData(watcher string, utxoPosition int) standardExitUTXOData {
 	return response
 }
 
+//Calls the processExits in the Plasma smart contract to start processing exits that
+//have completed the challenge period.
+func (p *processExit) plasmaProcessExits(numberExitsToProcess int64) {
+	client, err := ethclient.Dial(p.client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	privateKey, err := crypto.HexToECDSA(p.privateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("Cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	auth := bind.NewKeyedTransactor(privateKey)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = big.NewInt(0)    // in wei
+	auth.GasLimit = uint64(210000) // in units
+	auth.GasPrice = gasPrice
+
+	contractAddress := p.contract
+
+	address := common.HexToAddress(contractAddress)
+	instance, err := rootchain.NewRootchain(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	t := &bind.TransactOpts{}
+	t.From = fromAddress
+	t.Signer = auth.Signer
+	t.Value = big.NewInt(0)
+	t.GasLimit = 2000000
+
+	token := common.HexToAddress(p.token)
+
+
+	tx, err := instance.ProcessExits(t, token, big.NewInt(0), big.NewInt(numberExitsToProcess))
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Info("Process exits request to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
+	}
+}
+
 func main() {
 	logFormatter()
 	log.Info("Starting OmiseGO Plasma MoreVP CLI")
@@ -530,5 +601,10 @@ func main() {
 		s := standardExit{utxoPosition: convertStringToInt(*utxoPosition), contract: *contractExit, privateKey: *exitPrivateKey, client: *clientExit}
 		log.Info("Attempting to exit UTXO ", *utxoPosition)
 		s.startStandardExit(*watcherExitURL)
+	case process.FullCommand():
+		//plasma_cli process --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --token 0x0 --privatekey=foo --client=https://rinkeby.infura.io/v3/api_key
+		p := processExit{contract: *processContract, privateKey: *processPrivateKey, token: *processToken, client: *processExitClient}
+		log.Info("Calling process exits in the Plasma contract")
+		p.plasmaProcessExits(100)
 	}
 }
