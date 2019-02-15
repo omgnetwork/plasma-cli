@@ -55,6 +55,8 @@ var (
 	processToken = process.Flag("token", "Token address to process for standard exits").Required().String()
 	processPrivateKey = process.Flag("privatekey", "Private key used to fund the gas for the smart contract call").Required().String()
 	processExitClient = process.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
+	create = kingpin.Command("create", "Create a resource.")
+	createAccount = create.Command("account", "Create an account consisting of Public and Private key")
 )
 
 type processExit struct {
@@ -572,6 +574,18 @@ func (p *processExit) plasmaProcessExits(numberExitsToProcess int64) {
 	}
 }
 
+//generate Account - Public and Privatekey
+func generateAccount() {
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatal(err)
+	}
+	address := crypto.PubkeyToAddress(key.PublicKey).Hex()
+	privateKey := hex.EncodeToString(key.D.Bytes())
+	log.Info("Address is ", address)
+	log.Info("Privatekey is ", privateKey)
+}
+
 func main() {
 	logFormatter()
 	log.Info("Starting OmiseGO Plasma MoreVP CLI")
@@ -606,5 +620,9 @@ func main() {
 		p := processExit{contract: *processContract, privateKey: *processPrivateKey, token: *processToken, client: *processExitClient}
 		log.Info("Calling process exits in the Plasma contract")
 		p.plasmaProcessExits(100)
+	case createAccount.FullCommand():
+		//plasma_cli create account 
+		log.Info("Generating Keypair")
+		generateAccount()
 	}
 }
