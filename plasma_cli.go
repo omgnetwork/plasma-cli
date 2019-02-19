@@ -16,7 +16,7 @@ import (
 	"strings"
 	"strconv"
 
-	"rootchain"
+	"./rootchain"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -595,7 +595,18 @@ func generateAccount() {
 	log.Info("Privatekey is ", privateKey)
 }
 
+func signTransaction(unsignedTx string, privateKey string) []byte {
+	//hash the unsignedTx struct
+	unsignedTxBytes, _ := hex.DecodeString(unsignedTx)
+	hashed := crypto.Keccak256(unsignedTxBytes)
+	priv, _ := crypto.HexToECDSA(privateKey)
+	signed, _ := crypto.Sign(hashed, priv)
+	fmt.Println(hex.EncodeToString(signed))
+	return signed
+}
+
 func main() {
+	signTransaction("f85283c2f629808080808094000000000000000000000000000000000000000094736fa62adc040e4fdabfadf87e74ce0197304fad880de0b6b3a764000094000000000000000000000000000000000000000080", "2cc1636720fda6cc925b2594440cbb6fa75b6df818db8a795b0119bf37984233")
 	logFormatter()
 	log.Info("Starting OmiseGO Plasma MoreVP CLI")
 	switch kingpin.Parse() {
