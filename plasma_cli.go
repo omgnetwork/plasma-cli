@@ -261,8 +261,8 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	privateKey, err := crypto.HexToECDSA(d.privateKey)
+	
+	privateKey, err := crypto.HexToECDSA(filterZeroX(d.privateKey))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -407,7 +407,7 @@ func (s *standardExitUTXOData) plasmaStartStandardExit(ethereumClient string, co
 		log.Fatal(err)
 	}
 
-	privateKey, err := crypto.HexToECDSA(private)
+	privateKey, err := crypto.HexToECDSA(filterZeroX(private))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -468,6 +468,15 @@ func removeLeadingZeroX(item string) string {
 	return cleanedString
 }
 
+//filter our key string with 0x
+func filterZeroX(item string) string {
+	if strings.Contains(item, "0x") {
+		return removeLeadingZeroX(item)
+	} else {
+		return item
+	}
+}
+
 //Retrieve the UTXO exit data from the UTXO position
 func getUTXOExitData(watcher string, utxoPosition int) standardExitUTXOData {
 	// Build request
@@ -523,7 +532,7 @@ func (p *processExit) plasmaProcessExits(numberExitsToProcess int64) {
 		log.Fatal(err)
 	}
 
-	privateKey, err := crypto.HexToECDSA(p.privateKey)
+	privateKey, err := crypto.HexToECDSA(filterZeroX(p.privateKey))
 	if err != nil {
 		log.Fatal(err)
 	}
