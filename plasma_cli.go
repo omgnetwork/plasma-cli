@@ -7,6 +7,7 @@ import (
 	//"crypto/rand"
 	"encoding/json"
 	"encoding/hex"
+	//"encoding/binary"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -97,12 +98,14 @@ type standardExitUTXOData struct {
 }
 
 type plasmaTransaction struct {
-	blknum int
-	txindex int
-	oindex int
-	cur12 string
-	newowner string
-	amount float64
+	blknum uint
+	txindex uint
+	oindex uint
+	cur12 common.Address 
+	newowner common.Address 
+	oldowner common.Address 
+	toamount uint
+	fromamount uint
 }
 
 type plasmaDeposit struct {
@@ -151,9 +154,53 @@ type ownerUTXOs struct {
 	Txindex  int    `json:"txindex"`
 	Txbytes  string `json:"txbytes"`
 	Oindex   int    `json:"oindex"`
-	Currency string `json:"currency"`
+	Currency common.Address `json:"currency"`
 	Blknum   int    `json:"blknum"`
 	Amount   int    `json:"amount"`
+}
+
+type inputUTXO struct {
+	Txindex  uint    `json:"txindex"`
+	Oindex   uint    `json:"oindex"`
+	Currency common.Address `json:"currency"`
+	Blknum   uint    `json:"blknum"`
+	Amount   uint    `json:"amount"`
+}
+
+type outputUTXO struct {
+	OwnerAddress common.Address  `json:"owner"`
+	Amount uint `json:"amount"`
+	Currency common.Address `json:"currency"`
+}
+
+type createdTx struct {
+	Inputs []inputUTXO `json:"inputs"`
+	Outputs []outputUTXO `json:"outputs"`
+}
+
+type input struct {
+	Blknum uint
+	Txindex uint
+	Oindex uint
+}
+
+type output struct {
+	OwnerAddress common.Address
+	Currency common.Address
+	Amount uint
+}
+
+type transactionToEncode struct {
+	Inputs []input
+	Outputs []output
+}
+
+type someinputs struct {
+	Inputs []input
+}
+
+type someoutputs struct {
+	Outputs []output
 }
 
 type transactionSuccessResponse struct {
@@ -198,6 +245,7 @@ type blockNumberError struct {
 		Code        string `json:"code"`
 	} `json:"data"`
 }
+
 
 // Add the full time include timezone into log messages
 // INFO[2019-01-31T16:38:57+07:00]
@@ -361,8 +409,10 @@ func (u *watcherUTXOsFromAddress) displayUTXOS() {
 // Create a transaction from the user input from UTXO data.
 // This needs RLP encoding and then signing with the private
 // key of the sending party.
+/*
 func (t *plasmaTransaction) createPlasmaTransaction(privateKey string) {
 	// RLP encode the transaction
+	//transaction = createBasicTransaction(*t)
 	transaction := *t
 	rlpInputs, err := rlp.EncodeToBytes(transaction)
 	if err != nil {
@@ -371,12 +421,11 @@ func (t *plasmaTransaction) createPlasmaTransaction(privateKey string) {
 		log.Info("Transaction data structure RLP encoded")
 	}
 	fmt.Printf("%v", rlpInputs)
-	// TODO(jbunce) This needs to be finished
-    //rlpDecoded := rlp.DecodeBytes(rlpInputs, os.Stdout)
+  //rlpDecoded := rlp.DecodeBytes(rlpInputs, os.Stdout)
 	//log.Printf("%v", rlpDecoded)
 	//r, s, serr := ecdsa.Sign(rand.Reader, privateKey, hash)
 }
-
+*/
 func convertStringToInt(value string) int {
 	i, err := strconv.Atoi(value)
 	if err != nil {
@@ -597,16 +646,118 @@ func generateAccount() {
 
 func signTransaction(unsignedTx string, privateKey string) []byte {
 	//hash the unsignedTx struct
-	unsignedTxBytes, _ := hex.DecodeString(unsignedTx)
+	unsignedTxBytes, _ := hex.DecodeString(filterZeroX(unsignedTx))
 	hashed := crypto.Keccak256(unsignedTxBytes)
-	priv, _ := crypto.HexToECDSA(privateKey)
+	priv, _ := crypto.HexToECDSA(filterZeroX(privateKey))
+	//sign the transaction
 	signed, _ := crypto.Sign(hashed, priv)
 	fmt.Println(hex.EncodeToString(signed))
 	return signed
 }
 
+//simple transaction implementation, taking a single UTXO and split into two outputs
+/*
+type plasmaTransaction struct {
+	blknum int
+	txindex int
+	oindex int
+	cur12 string
+	newowner string
+	amount float64
+}
+
+steps:
+1. pickBasicUtxo(), loop through all UTXOs and return the biggest one
+2. createBasicTransaction(), single input, two outputs
+3. 
+*/
+
+func (w *watcherUTXOsFromAddress) pickBasicUtxo() {
+
+}
+
+/*
+{"inputs":[{"utxo_pos":55000000000001,"txindex":0,"owner":"0x7dafb4442c112c76f2437af717bb8a1ea0f146bf","oindex":1,"currency":"0x0000000000000000000000000000000000000000","blknum":55000,"amount":63}],"outputs":[{"owner":"0xc53aee876d24b2e0634362f732118ebb67a20e14","currency":"0x0000000000000000000000000000000000000000","amount":1},{"owner":"0x7dafb4442c112c76f2437af717bb8a1ea0f146bf","currency":"0x0000000000000000000000000000000000000000","amount":62}]}
+
+*/
+
+func (p *plasmaTransaction) createBasicTransaction() createdTx {
+		//creates 1 input, 2 outputs tx
+		NULL_ADDRESS := common.HexToAddress("0x0000000000000000000000000000000000000000")
+		NULL_INPUT  := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0, Currency: NULL_ADDRESS}
+		NULL_OUTPUT := outputUTXO{ OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS }
+		//1 single input
+		singleInput := inputUTXO{Blknum: p.blknum, Txindex: p.txindex, Oindex: p.oindex, Currency: p.cur12}
+		//output one is value you are sending
+		outputOne := outputUTXO{ OwnerAddress: p.newowner, Amount: p.toamount, Currency: p.cur12 }
+		//output two is the change
+		outputTwo := outputUTXO{ OwnerAddress: p.oldowner, Amount: p.fromamount - p.toamount, Currency: p.cur12 }
+	
+		var i []inputUTXO
+		var o []outputUTXO
+		i = append(i, singleInput, NULL_INPUT, NULL_INPUT, NULL_INPUT)
+		o = append(o, outputOne, outputTwo, NULL_OUTPUT, NULL_OUTPUT)
+		utxo := createdTx{Inputs: i, Outputs: o}
+	
+		//js, _ := json.Marshal(utxo)
+		//fmt.Println(string(js))
+
+		return utxo
+}
+
+func (c *createdTx) encodeTransaction() {
+	var t *transactionToEncode
+	var i []input
+	var o []output
+
+	for _, val := range c.Inputs {
+		t := input{Txindex: val.Txindex, Oindex: val.Oindex, Blknum: val.Blknum}
+		i = append(i, t)
+	}
+
+	for _, val := range c.Outputs {
+		t := output{OwnerAddress: val.OwnerAddress, Amount: val.Amount, Currency: val.Currency}
+		o = append(o, t)
+	}
+	t = &transactionToEncode{Outputs: o, Inputs: i}
+
+	hey, err := rlp.EncodeToBytes(t)
+	if err != nil {
+		fmt.Println(err)
+	} 
+	fmt.Println(hex.EncodeToString(hey))
+	
+}
+
+/*
+func buildSignedTransaction() {
+	unsignedTx := "f85283c2f629808080808094000000000000000000000000000000000000000094736fa62adc040e4fdabfadf87e74ce0197304fad880de0b6b3a764000094000000000000000000000000000000000000000080"
+	signatures := "4f7bd9407c6b66a76e2217cd2c2c89e1923e8c1cf369d194c8b6f052b5f9ddbc1c642fc8310f29eaae111f07fc825dab835f99a726365ac2f1a6d79ddb5277181b"
+	var tx []interface{}
+	//RLP decode unsignedTx
+	unsigned, _ := hex.DecodeString(unsignedTx)
+	rlp.DecodeBytes(unsigned, &tx)
+	//fmt.Println(tx)
+	fmt.Println(reflect.TypeOf(tx))
+	//Append the signature with decoded unsignedTx list
+	signaturesBytes, _ := hex.DecodeString(filterZeroX(signatures))
+	s := append(tx, signaturesBytes...)
+	//fmt.Println(s)
+	encoded, _ := rlp.EncodeToBytes(s)
+	fmt.Println(encoded)
+	fmt.Println(hex.EncodeToString(encoded))
+	//rlp encode both transaction + signature
+	expected, _ := hex.DecodeString("f897f843b8414f7bd9407c6b66a76e2217cd2c2c89e1923e8c1cf369d194c8b6f052b5f9ddbc1c642fc8310f29eaae111f07fc825dab835f99a726365ac2f1a6d79ddb5277181b83c2f629808080808094000000000000000000000000000000000000000094736fa62adc040e4fdabfadf87e74ce0197304fad880de0b6b3a764000094000000000000000000000000000000000000000080")
+	fmt.Println("answer should be", expected)
+}
+*/
+
 func main() {
-	signTransaction("f85283c2f629808080808094000000000000000000000000000000000000000094736fa62adc040e4fdabfadf87e74ce0197304fad880de0b6b3a764000094000000000000000000000000000000000000000080", "2cc1636720fda6cc925b2594440cbb6fa75b6df818db8a795b0119bf37984233")
+	//signTransaction("0xF8C5D2C582CF088001C3808080C3808080C3808080F8B0EB94C53AEE876D24B2E0634362F732118EBB67A20E1494000000000000000000000000000000000000000002EB947DAFB4442C112C76F2437AF717BB8A1EA0F146BF94000000000000000000000000000000000000000040EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080", "0x17b5c8b364f2687f416f2c414f9482abba984b9cf833cdfa20157377975d156e")
+	//buildSignedTransaction()
+	c := plasmaTransaction{blknum: 55000, txindex: 0, oindex: 1, cur12: common.HexToAddress("0x0000000000000000000000000000000000000000"), newowner: common.HexToAddress("0xc53aee876d24b2e0634362f732118ebb67a20e14"), oldowner: common.HexToAddress("0x7dafb4442c112c76f2437af717bb8a1ea0f146bf"), toamount: 1, fromamount: 63}
+	k := c.createBasicTransaction()																			  
+	k.encodeTransaction()
 	logFormatter()
 	log.Info("Starting OmiseGO Plasma MoreVP CLI")
 	switch kingpin.Parse() {
@@ -628,8 +779,8 @@ func main() {
 		d.depositToPlasmaContract()
 	case transaction.FullCommand():
 		//plasma_cli transaction --block --txindex --oindex --currency --newowner --amount
-		t := plasmaTransaction{blknum: convertStringToInt(*blknum), txindex: convertStringToInt(*txindex), oindex: convertStringToInt(*oindex), cur12: *cur12, newowner: *newowner, amount: convertStringToFloat64(*amount)}
-		t.createPlasmaTransaction(*signing)
+		//t := plasmaTransaction{blknum: convertStringToInt(*blknum), txindex: convertStringToInt(*txindex), oindex: convertStringToInt(*oindex), cur12: *cur12, newowner: *newowner, amount: convertStringToFloat64(*amount)}
+		//t.createPlasmaTransaction(*signing)
 	case exit.FullCommand():
 		//plasma_cli exit --utxo=1000000000 --privatekey=foo --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --watcher=watcher-staging.omg.network
 		s := standardExit{utxoPosition: convertStringToInt(*utxoPosition), contract: *contractExit, privateKey: *exitPrivateKey, client: *clientExit}
