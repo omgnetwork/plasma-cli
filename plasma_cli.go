@@ -195,6 +195,15 @@ type transactionToEncode struct {
 	Outputs []output
 }
 
+type transactionToBuild struct {
+	Sig Signature
+	Transaction transactionToEncode
+}
+
+const signatureLength = 65
+
+type Signature [signatureLength]byte
+
 type someinputs struct {
 	Inputs []input
 }
@@ -644,15 +653,16 @@ func generateAccount() {
 	log.Info("Privatekey is ", privateKey)
 }
 
-func signTransaction(unsignedTx string, privateKey string) []byte {
+func signTransaction(unsignedTx string, privateKey string) (signature Signature){
 	//hash the unsignedTx struct
 	unsignedTxBytes, _ := hex.DecodeString(filterZeroX(unsignedTx))
 	hashed := crypto.Keccak256(unsignedTxBytes)
 	priv, _ := crypto.HexToECDSA(filterZeroX(privateKey))
 	//sign the transaction
-	signed, _ := crypto.Sign(hashed, priv)
-	fmt.Println(hex.EncodeToString(signed))
-	return signed
+	signaturebytes, _ := crypto.Sign(hashed, priv)
+	//fmt.Println(hex.EncodeToString(signature))
+	copy(signature[:], signaturebytes)
+	return
 }
 
 //simple transaction implementation, taking a single UTXO and split into two outputs
@@ -705,7 +715,7 @@ func (p *plasmaTransaction) createBasicTransaction() createdTx {
 		return utxo
 }
 
-func (c *createdTx) encodeTransaction() {
+func (c *createdTx) encodeTransaction() string {
 	var t *transactionToEncode
 	var i []input
 	var o []output
@@ -721,24 +731,33 @@ func (c *createdTx) encodeTransaction() {
 	}
 	t = &transactionToEncode{Outputs: o, Inputs: i}
 
-	hey, err := rlp.EncodeToBytes(t)
+	encodedBytes, err := rlp.EncodeToBytes(t)
 	if err != nil {
 		fmt.Println(err)
 	} 
-	fmt.Println(hex.EncodeToString(hey))
-	
+	//fmt.Println(hex.EncodeToString(hey))
+	return hex.EncodeToString(encodedBytes)
 }
 
-/*
-func buildSignedTransaction() {
-	unsignedTx := "f85283c2f629808080808094000000000000000000000000000000000000000094736fa62adc040e4fdabfadf87e74ce0197304fad880de0b6b3a764000094000000000000000000000000000000000000000080"
-	signatures := "4f7bd9407c6b66a76e2217cd2c2c89e1923e8c1cf369d194c8b6f052b5f9ddbc1c642fc8310f29eaae111f07fc825dab835f99a726365ac2f1a6d79ddb5277181b"
-	var tx []interface{}
+
+func buildSignedTransaction(signature Signature, unsignedTX string) {
+
+	var tx transactionToEncode
+
 	//RLP decode unsignedTx
-	unsigned, _ := hex.DecodeString(unsignedTx)
-	rlp.DecodeBytes(unsigned, &tx)
+	decoded, _ := hex.DecodeString(unsignedTX)
+	rlp.DecodeBytes(decoded, &tx)
 	//fmt.Println(tx)
-	fmt.Println(reflect.TypeOf(tx))
+	//build Transaction
+	builtTx := transactionToBuild{Transaction: tx, Sig: signature}
+	//fmt.Println(builtTx)
+
+	//RLP encode built transaction
+	encoded, _ := rlp.EncodeToBytes(builtTx)
+	fmt.Println(hex.EncodeToString(encoded))
+	expected, _ := hex.DecodeString("f9010af843b84165cb61979864c482c8856ad7b8442e2244031e0669e67e6fe23fef9ef6e2932e2dc3987f0f76b256e0c61db13577e7c8f053a3f83e33b1c690238f0e0e6eccd21cd2c582d6d88001c3808080c3808080c3808080f8b0eb94c53aee876d24b2e0634362f732118ebb67a20e1494000000000000000000000000000000000000000001eb947dafb4442c112c76f2437af717bb8a1ea0f146bf9400000000000000000000000000000000000000003eeb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080eb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080")
+	fmt.Println("answer should be", expected)
+	/*
 	//Append the signature with decoded unsignedTx list
 	signaturesBytes, _ := hex.DecodeString(filterZeroX(signatures))
 	s := append(tx, signaturesBytes...)
@@ -747,17 +766,21 @@ func buildSignedTransaction() {
 	fmt.Println(encoded)
 	fmt.Println(hex.EncodeToString(encoded))
 	//rlp encode both transaction + signature
-	expected, _ := hex.DecodeString("f897f843b8414f7bd9407c6b66a76e2217cd2c2c89e1923e8c1cf369d194c8b6f052b5f9ddbc1c642fc8310f29eaae111f07fc825dab835f99a726365ac2f1a6d79ddb5277181b83c2f629808080808094000000000000000000000000000000000000000094736fa62adc040e4fdabfadf87e74ce0197304fad880de0b6b3a764000094000000000000000000000000000000000000000080")
+	expected, _ := hex.DecodeString("f9010af843b84165cb61979864c482c8856ad7b8442e2244031e0669e67e6fe23fef9ef6e2932e2dc3987f0f76b256e0c61db13577e7c8f053a3f83e33b1c690238f0e0e6eccd21cd2c582d6d88001c3808080c3808080c3808080f8b0eb94c53aee876d24b2e0634362f732118ebb67a20e1494000000000000000000000000000000000000000001eb947dafb4442c112c76f2437af717bb8a1ea0f146bf9400000000000000000000000000000000000000003eeb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080eb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080")
 	fmt.Println("answer should be", expected)
+	*/
 }
-*/
 
 func main() {
-	//signTransaction("0xF8C5D2C582CF088001C3808080C3808080C3808080F8B0EB94C53AEE876D24B2E0634362F732118EBB67A20E1494000000000000000000000000000000000000000002EB947DAFB4442C112C76F2437AF717BB8A1EA0F146BF94000000000000000000000000000000000000000040EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080", "0x17b5c8b364f2687f416f2c414f9482abba984b9cf833cdfa20157377975d156e")
+	//fmt.Println(signTransaction("0xF8C5D2C582CF088001C3808080C3808080C3808080F8B0EB94C53AEE876D24B2E0634362F732118EBB67A20E1494000000000000000000000000000000000000000002EB947DAFB4442C112C76F2437AF717BB8A1EA0F146BF94000000000000000000000000000000000000000040EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080", "0x17b5c8b364f2687f416f2c414f9482abba984b9cf833cdfa20157377975d156e"))
+	
 	//buildSignedTransaction()
 	c := plasmaTransaction{blknum: 55000, txindex: 0, oindex: 1, cur12: common.HexToAddress("0x0000000000000000000000000000000000000000"), newowner: common.HexToAddress("0xc53aee876d24b2e0634362f732118ebb67a20e14"), oldowner: common.HexToAddress("0x7dafb4442c112c76f2437af717bb8a1ea0f146bf"), toamount: 1, fromamount: 63}
 	k := c.createBasicTransaction()																			  
-	k.encodeTransaction()
+	encoded := k.encodeTransaction()
+	sig := signTransaction(encoded, "17b5c8b364f2687f416f2c414f9482abba984b9cf833cdfa20157377975d156e")
+	buildSignedTransaction(sig, encoded)
+
 	logFormatter()
 	log.Info("Starting OmiseGO Plasma MoreVP CLI")
 	switch kingpin.Parse() {
