@@ -197,19 +197,21 @@ type transactionToEncode struct {
 
 type transactionToBuild struct {
 	Sig Signature
-	Transaction transactionToEncode
+	Inputs []input
+	Outputs []output
 }
 
 const signatureLength = 65
 
-type Signature [signatureLength]byte
-
-type someinputs struct {
-	Inputs []input
+type Signature struct {
+	Sig []byte
 }
 
-type someoutputs struct {
-	Outputs []output
+//try big int, int and bytes32
+type ecdsaSignature struct {
+	R []byte
+	S []byte
+	V uint8
 }
 
 type transactionSuccessResponse struct {
@@ -653,16 +655,22 @@ func generateAccount() {
 	log.Info("Privatekey is ", privateKey)
 }
 
-func signTransaction(unsignedTx string, privateKey string) (signature Signature){
+//signature Signature
+func signTransaction(unsignedTx string, privateKey string) []byte {
 	//hash the unsignedTx struct
 	unsignedTxBytes, _ := hex.DecodeString(filterZeroX(unsignedTx))
 	hashed := crypto.Keccak256(unsignedTxBytes)
 	priv, _ := crypto.HexToECDSA(filterZeroX(privateKey))
 	//sign the transaction
 	signaturebytes, _ := crypto.Sign(hashed, priv)
-	//fmt.Println(hex.EncodeToString(signature))
-	copy(signature[:], signaturebytes)
-	return
+	fmt.Println(signaturebytes)
+	fmt.Println(signaturebytes[0:32])
+	fmt.Println(signaturebytes[32:64])
+	fmt.Println(signaturebytes[64])
+	//fmt.Println(hex.EncodeToString(signaturebytes))
+	
+	//copy(signature[:], signaturebytes)
+	return signaturebytes //ecdsaSignature{R: signaturebytes[0:32], S: signaturebytes[32:64], V: 28}
 }
 
 //simple transaction implementation, taking a single UTXO and split into two outputs
@@ -688,12 +696,11 @@ func (w *watcherUTXOsFromAddress) pickBasicUtxo() {
 
 /*
 {"inputs":[{"utxo_pos":55000000000001,"txindex":0,"owner":"0x7dafb4442c112c76f2437af717bb8a1ea0f146bf","oindex":1,"currency":"0x0000000000000000000000000000000000000000","blknum":55000,"amount":63}],"outputs":[{"owner":"0xc53aee876d24b2e0634362f732118ebb67a20e14","currency":"0x0000000000000000000000000000000000000000","amount":1},{"owner":"0x7dafb4442c112c76f2437af717bb8a1ea0f146bf","currency":"0x0000000000000000000000000000000000000000","amount":62}]}
-
 */
 
 func (p *plasmaTransaction) createBasicTransaction() createdTx {
 		//creates 1 input, 2 outputs tx
-		NULL_ADDRESS := common.HexToAddress("0x0000000000000000000000000000000000000000")
+		NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
 		NULL_INPUT  := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0, Currency: NULL_ADDRESS}
 		NULL_OUTPUT := outputUTXO{ OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS }
 		//1 single input
@@ -740,23 +747,30 @@ func (c *createdTx) encodeTransaction() string {
 }
 
 
-func buildSignedTransaction(signature Signature, unsignedTX string) {
+func buildSignedTransaction(signature []byte, unsignedTX string) {
 
 	var tx transactionToEncode
-
+	//var m type interface{}
 	//RLP decode unsignedTx
 	decoded, _ := hex.DecodeString(unsignedTX)
 	rlp.DecodeBytes(decoded, &tx)
-	//fmt.Println(tx)
 	//build Transaction
-	builtTx := transactionToBuild{Transaction: tx, Sig: signature}
-	//fmt.Println(builtTx)
+	realsig := Signature{Sig: signature}
+	builtTx := transactionToBuild{Inputs: tx.Inputs, Outputs: tx.Outputs, Sig: realsig}
+	//builtTx := m{tx, signature}
+	//fmt.Println("struct is", binary.LittleEndian.Uint64(builtTx.Sig))
+
+	//fmt.Println("struct is", builtTx)
 
 	//RLP encode built transaction
 	encoded, _ := rlp.EncodeToBytes(builtTx)
 	fmt.Println(hex.EncodeToString(encoded))
-	expected, _ := hex.DecodeString("f9010af843b84165cb61979864c482c8856ad7b8442e2244031e0669e67e6fe23fef9ef6e2932e2dc3987f0f76b256e0c61db13577e7c8f053a3f83e33b1c690238f0e0e6eccd21cd2c582d6d88001c3808080c3808080c3808080f8b0eb94c53aee876d24b2e0634362f732118ebb67a20e1494000000000000000000000000000000000000000001eb947dafb4442c112c76f2437af717bb8a1ea0f146bf9400000000000000000000000000000000000000003eeb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080eb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080")
+	//var txx *transactionToBuild
+	expected, _ := hex.DecodeString("f9010bf843b8413b02b7388ef50c8267287fa9a0cfde2798427d93aa10e1af77db0273b98622e42f08899d2973d6bfef8d4b2d904f66e3e3bcbf87ea388ae6ca7b09d0277221421bd3c6830134988001c3808080c3808080c3808080f8b0eb94c53aee876d24b2e0634362f732118ebb67a20e1494000000000000000000000000000000000000000001eb947dafb4442c112c76f2437af717bb8a1ea0f146bf94000000000000000000000000000000000000000038eb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080eb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080")
+	//fmt.Println("answer should be", expected)
+	//rlp.DecodeBytes(expected, txx)
 	fmt.Println("answer should be", expected)
+	//fmt.Println(txx.Transaction)
 	/*
 	//Append the signature with decoded unsignedTx list
 	signaturesBytes, _ := hex.DecodeString(filterZeroX(signatures))
@@ -766,19 +780,16 @@ func buildSignedTransaction(signature Signature, unsignedTX string) {
 	fmt.Println(encoded)
 	fmt.Println(hex.EncodeToString(encoded))
 	//rlp encode both transaction + signature
-	expected, _ := hex.DecodeString("f9010af843b84165cb61979864c482c8856ad7b8442e2244031e0669e67e6fe23fef9ef6e2932e2dc3987f0f76b256e0c61db13577e7c8f053a3f83e33b1c690238f0e0e6eccd21cd2c582d6d88001c3808080c3808080c3808080f8b0eb94c53aee876d24b2e0634362f732118ebb67a20e1494000000000000000000000000000000000000000001eb947dafb4442c112c76f2437af717bb8a1ea0f146bf9400000000000000000000000000000000000000003eeb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080eb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080")
-	fmt.Println("answer should be", expected)
 	*/
 }
 
 func main() {
 	//fmt.Println(signTransaction("0xF8C5D2C582CF088001C3808080C3808080C3808080F8B0EB94C53AEE876D24B2E0634362F732118EBB67A20E1494000000000000000000000000000000000000000002EB947DAFB4442C112C76F2437AF717BB8A1EA0F146BF94000000000000000000000000000000000000000040EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080", "0x17b5c8b364f2687f416f2c414f9482abba984b9cf833cdfa20157377975d156e"))
 	
-	//buildSignedTransaction()
-	c := plasmaTransaction{blknum: 55000, txindex: 0, oindex: 1, cur12: common.HexToAddress("0x0000000000000000000000000000000000000000"), newowner: common.HexToAddress("0xc53aee876d24b2e0634362f732118ebb67a20e14"), oldowner: common.HexToAddress("0x7dafb4442c112c76f2437af717bb8a1ea0f146bf"), toamount: 1, fromamount: 63}
+	c := plasmaTransaction{blknum: 43000, txindex: 0, oindex: 1, cur12: common.HexToAddress("0000000000000000000000000000000000000000"), newowner: common.HexToAddress("0x7dafb4442c112c76f2437af717bb8a1ea0f146bf"), oldowner: common.HexToAddress("0xc53aee876d24b2e0634362f732118ebb67a20e14"), toamount: 1000, fromamount: 9801}
 	k := c.createBasicTransaction()																			  
 	encoded := k.encodeTransaction()
-	sig := signTransaction(encoded, "17b5c8b364f2687f416f2c414f9482abba984b9cf833cdfa20157377975d156e")
+	sig := signTransaction(encoded, "3a0adcf75ed744225fbe3b07ba949d1a26685c2ee56d38025c2762dbdd4a73c6")
 	buildSignedTransaction(sig, encoded)
 
 	logFormatter()
