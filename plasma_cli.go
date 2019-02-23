@@ -7,8 +7,6 @@ import (
 	//"crypto/rand"
 	"encoding/json"
 	"encoding/hex"
-	//"encoding/binary"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"io/ioutil"
@@ -17,7 +15,7 @@ import (
 	"strings"
 	"strconv"
 
-	"./rootchain"
+	"rootchain"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -38,13 +36,16 @@ var (
 	client = deposit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 	contract = deposit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
 	transaction = kingpin.Command("transaction", "Create a transaction on the OmiseGO Plasma MoreVP network")
-	blknum = transaction.Flag("block", "Block number").Required().String()
-	txindex = transaction.Flag("txindex", "Transaction Index").Required().String()
-	oindex = transaction.Flag("oindex", "Output Index").Required().String()
-	cur12 = transaction.Flag("currency", "Currency of the transaction").Required().String()
-	newowner = transaction.Flag("newowner", "New owner of the UTXO").Required().String()
-	amount = transaction.Flag("amount", "Amount to transact").Required().String()
-	signing = transaction.Flag("key", "Private key for signing the transaction").Required().String()
+	blknum = transaction.Flag("blknum", "Block number").Required().Uint()
+	txindex = transaction.Flag("txindex", "Transaction Index").Required().Uint()
+	oindex = transaction.Flag("oindex", "Output Index").Required().Uint()
+	cur12 = transaction.Flag("cur12", "Currency of the transaction").Required().String()
+	toowner = transaction.Flag("toowner", "New owner of the UTXO").Required().String()
+	fromowner = transaction.Flag("fromowner", "from an owner of the UTXO").Required().String()
+	privatekey = transaction.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
+	toamount = transaction.Flag("toamount", "Amount to transact").Required().Uint()
+	fromamount = transaction.Flag("fromamount", "original amount").Required().Uint()
+	watcherSubmitURL = transaction.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 	exit = kingpin.Command("exit", "Standard exit a UTXO back to the root chain.")
 	watcherExitURL = exit.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 	contractExit = exit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
@@ -102,10 +103,11 @@ type plasmaTransaction struct {
 	txindex uint
 	oindex uint
 	cur12 common.Address 
-	newowner common.Address 
-	oldowner common.Address 
+	toowner common.Address 
+	fromowner common.Address 
 	toamount uint
 	fromamount uint
+	privatekey string
 }
 
 type plasmaDeposit struct {
@@ -150,14 +152,6 @@ type watcherError struct {
 	} `json:"data"`
 }
 
-type ownerUTXOs struct {
-	Txindex  int    `json:"txindex"`
-	Txbytes  string `json:"txbytes"`
-	Oindex   int    `json:"oindex"`
-	Currency common.Address `json:"currency"`
-	Blknum   int    `json:"blknum"`
-	Amount   int    `json:"amount"`
-}
 
 type inputUTXO struct {
 	Txindex  uint    `json:"txindex"`
@@ -205,13 +199,6 @@ const signatureLength = 65
 
 type Signature struct {
 	Sig []byte
-}
-
-//try big int, int and bytes32
-type ecdsaSignature struct {
-	R []byte
-	S []byte
-	V uint8
 }
 
 type transactionSuccessResponse struct {
@@ -417,26 +404,6 @@ func (u *watcherUTXOsFromAddress) displayUTXOS() {
 	}
 }
 
-// Create a transaction from the user input from UTXO data.
-// This needs RLP encoding and then signing with the private
-// key of the sending party.
-/*
-func (t *plasmaTransaction) createPlasmaTransaction(privateKey string) {
-	// RLP encode the transaction
-	//transaction = createBasicTransaction(*t)
-	transaction := *t
-	rlpInputs, err := rlp.EncodeToBytes(transaction)
-	if err != nil {
-		log.Fatal("Error encoding RLP")
-	} else {
-		log.Info("Transaction data structure RLP encoded")
-	}
-	fmt.Printf("%v", rlpInputs)
-  //rlpDecoded := rlp.DecodeBytes(rlpInputs, os.Stdout)
-	//log.Printf("%v", rlpDecoded)
-	//r, s, serr := ecdsa.Sign(rand.Reader, privateKey, hash)
-}
-*/
 func convertStringToInt(value string) int {
 	i, err := strconv.Atoi(value)
 	if err != nil {
@@ -655,73 +622,57 @@ func generateAccount() {
 	log.Info("Privatekey is ", privateKey)
 }
 
-//signature Signature
+//sign a transaction with a key
 func signTransaction(unsignedTx string, privateKey string) []byte {
 	//hash the unsignedTx struct
-	unsignedTxBytes, _ := hex.DecodeString(filterZeroX(unsignedTx))
+	unsignedTxBytes, err := hex.DecodeString(filterZeroX(unsignedTx))
+	if err != nil {
+		log.Fatal(err)
+	}
 	hashed := crypto.Keccak256(unsignedTxBytes)
-	priv, _ := crypto.HexToECDSA(filterZeroX(privateKey))
+	priv, err := crypto.HexToECDSA(filterZeroX(privateKey))
+	if err != nil {
+		log.Fatal(err)
+	}
 	//sign the transaction
-	signaturebytes, _ := crypto.Sign(hashed, priv)
-	fmt.Println(signaturebytes)
-	fmt.Println(signaturebytes[0:32])
-	fmt.Println(signaturebytes[32:64])
-	fmt.Println(signaturebytes[64])
-	//fmt.Println(hex.EncodeToString(signaturebytes))
-	
-	//copy(signature[:], signaturebytes)
-	return signaturebytes //ecdsaSignature{R: signaturebytes[0:32], S: signaturebytes[32:64], V: 28}
+	signature, err := crypto.Sign(hashed, priv)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//adding 27 to last byte, because ethereum
+	copy(signature[64:], []uint8{signature[64] + 27})
+
+	log.Info("transaction signed: ", signature)
+	return signature 
 }
 
-//simple transaction implementation, taking a single UTXO and split into two outputs
-/*
-type plasmaTransaction struct {
-	blknum int
-	txindex int
-	oindex int
-	cur12 string
-	newowner string
-	amount float64
-}
-
-steps:
-1. pickBasicUtxo(), loop through all UTXOs and return the biggest one
-2. createBasicTransaction(), single input, two outputs
-3. 
-*/
-
-func (w *watcherUTXOsFromAddress) pickBasicUtxo() {
-
-}
-
-/*
-{"inputs":[{"utxo_pos":55000000000001,"txindex":0,"owner":"0x7dafb4442c112c76f2437af717bb8a1ea0f146bf","oindex":1,"currency":"0x0000000000000000000000000000000000000000","blknum":55000,"amount":63}],"outputs":[{"owner":"0xc53aee876d24b2e0634362f732118ebb67a20e14","currency":"0x0000000000000000000000000000000000000000","amount":1},{"owner":"0x7dafb4442c112c76f2437af717bb8a1ea0f146bf","currency":"0x0000000000000000000000000000000000000000","amount":62}]}
-*/
-
+//create a basic transaction with 1 input splitted into 2 outputs
 func (p *plasmaTransaction) createBasicTransaction() createdTx {
-		//creates 1 input, 2 outputs tx
-		NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
-		NULL_INPUT  := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0, Currency: NULL_ADDRESS}
-		NULL_OUTPUT := outputUTXO{ OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS }
-		//1 single input
-		singleInput := inputUTXO{Blknum: p.blknum, Txindex: p.txindex, Oindex: p.oindex, Currency: p.cur12}
-		//output one is value you are sending
-		outputOne := outputUTXO{ OwnerAddress: p.newowner, Amount: p.toamount, Currency: p.cur12 }
-		//output two is the change
-		outputTwo := outputUTXO{ OwnerAddress: p.oldowner, Amount: p.fromamount - p.toamount, Currency: p.cur12 }
+	//creates 1 input, 2 outputs tx
+	NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
+	NULL_INPUT  := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0, Currency: NULL_ADDRESS}
+	NULL_OUTPUT := outputUTXO{ OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS }
+	//1 single input
+	singleInput := inputUTXO{Blknum: p.blknum, Txindex: p.txindex, Oindex: p.oindex, Currency: p.cur12}
+	//output one is value you are sending
+	outputOne := outputUTXO{ OwnerAddress: p.toowner, Amount: p.toamount, Currency: p.cur12 }
+	//output two is the change
+	if p.fromamount < p.toamount {
+		log.Fatal("UTXO not large enough to be sent")
+	}	
+	outputTwo := outputUTXO{ OwnerAddress: p.fromowner, Amount: p.fromamount - p.toamount, Currency: p.cur12 }
 	
-		var i []inputUTXO
-		var o []outputUTXO
-		i = append(i, singleInput, NULL_INPUT, NULL_INPUT, NULL_INPUT)
-		o = append(o, outputOne, outputTwo, NULL_OUTPUT, NULL_OUTPUT)
-		utxo := createdTx{Inputs: i, Outputs: o}
+	var i []inputUTXO
+	var o []outputUTXO
+	i = append(i, singleInput, NULL_INPUT, NULL_INPUT, NULL_INPUT)
+	o = append(o, outputOne, outputTwo, NULL_OUTPUT, NULL_OUTPUT)
+	transaction := createdTx{Inputs: i, Outputs: o}
 	
-		//js, _ := json.Marshal(utxo)
-		//fmt.Println(string(js))
-
-		return utxo
+	log.Info("Raw Transaction: ", transaction)
+	return transaction
 }
 
+//encode transaction with RLP
 func (c *createdTx) encodeTransaction() string {
 	var t *transactionToEncode
 	var i []input
@@ -737,61 +688,97 @@ func (c *createdTx) encodeTransaction() string {
 		o = append(o, t)
 	}
 	t = &transactionToEncode{Outputs: o, Inputs: i}
-
+	log.Info("transaction UTXOs ", t)
 	encodedBytes, err := rlp.EncodeToBytes(t)
 	if err != nil {
-		fmt.Println(err)
-	} 
-	//fmt.Println(hex.EncodeToString(hey))
+		log.Fatal(err)
+	}
+	
+	log.Info("Hex encoded transaction: ", encodedBytes)
 	return hex.EncodeToString(encodedBytes)
 }
 
-
-func buildSignedTransaction(signature []byte, unsignedTX string) {
-
+//decode RLP, and rebuild transaction with signature, finally encode the whole thing
+func buildSignedTransaction(signature []byte, unsignedTX string) []byte{
 	var tx transactionToEncode
-	//var m type interface{}
 	//RLP decode unsignedTx
-	decoded, _ := hex.DecodeString(unsignedTX)
+	decoded, err := hex.DecodeString(unsignedTX)
+	if err != nil {
+		log.Fatal(err)
+	}
 	rlp.DecodeBytes(decoded, &tx)
 	//build Transaction
-	realsig := Signature{Sig: signature}
-	builtTx := transactionToBuild{Inputs: tx.Inputs, Outputs: tx.Outputs, Sig: realsig}
-	//builtTx := m{tx, signature}
-	//fmt.Println("struct is", binary.LittleEndian.Uint64(builtTx.Sig))
-
-	//fmt.Println("struct is", builtTx)
-
+	txsig := Signature{Sig: signature}
+	builtTx := transactionToBuild{Inputs: tx.Inputs, Outputs: tx.Outputs, Sig: txsig}
 	//RLP encode built transaction
-	encoded, _ := rlp.EncodeToBytes(builtTx)
-	fmt.Println(hex.EncodeToString(encoded))
-	//var txx *transactionToBuild
-	expected, _ := hex.DecodeString("f9010bf843b8413b02b7388ef50c8267287fa9a0cfde2798427d93aa10e1af77db0273b98622e42f08899d2973d6bfef8d4b2d904f66e3e3bcbf87ea388ae6ca7b09d0277221421bd3c6830134988001c3808080c3808080c3808080f8b0eb94c53aee876d24b2e0634362f732118ebb67a20e1494000000000000000000000000000000000000000001eb947dafb4442c112c76f2437af717bb8a1ea0f146bf94000000000000000000000000000000000000000038eb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080eb94000000000000000000000000000000000000000094000000000000000000000000000000000000000080")
-	//fmt.Println("answer should be", expected)
-	//rlp.DecodeBytes(expected, txx)
-	fmt.Println("answer should be", expected)
-	//fmt.Println(txx.Transaction)
-	/*
-	//Append the signature with decoded unsignedTx list
-	signaturesBytes, _ := hex.DecodeString(filterZeroX(signatures))
-	s := append(tx, signaturesBytes...)
-	//fmt.Println(s)
-	encoded, _ := rlp.EncodeToBytes(s)
-	fmt.Println(encoded)
-	fmt.Println(hex.EncodeToString(encoded))
-	//rlp encode both transaction + signature
-	*/
+	encoded, err := rlp.EncodeToBytes(builtTx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Info("transaction signed and built: ", hex.EncodeToString(encoded))
+	return encoded
+}
+
+//submit transaction to endpoint, take tx byte and watcher url
+func submitTransaction(tx []byte, w string) transactionSuccessResponse{
+	txstring := "0x" + hex.EncodeToString(tx)
+	
+	// Build request
+	var url strings.Builder
+	url.WriteString(w)
+	url.WriteString("/transaction.submit")
+	postData := map[string]interface{}{"transaction": txstring}
+	js, _ := json.Marshal(postData)
+	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
+	if err != nil {
+		log.Fatal(err)
+	}
+	r.Header.Add("Content-Type", "application/json")
+
+	// Make the request
+	client := &http.Client{}
+	resp, err := client.Do(r)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Unmarshall the response
+	response := transactionSuccessResponse{}
+
+	rstring, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	jsonErr := json.Unmarshal([]byte(rstring), &response)
+	if jsonErr != nil {
+		log.Warning("Could not unmarshal successful response from the Watcher")
+		errorInfo := transactionFailureResponse{}
+		processError := json.Unmarshal([]byte(rstring), &errorInfo)
+		if processError != nil { // Response from the Watcher does not match a struct
+			log.Fatal("Unknown response from Watcher API")
+			panic("uh oh")
+		}
+		log.Warning("Unmarshalled JSON error response from the Watcher API")
+		log.Error(errorInfo)
+	} else {
+		log.Info(resp.Status)
+	}
+	log.Info(response)
+	return response
+}
+
+//minimal send transaction function, take utxo and send to an address
+func (p *plasmaTransaction) sendBasicTransaction(w string) transactionSuccessResponse {							
+	k := p.createBasicTransaction()														  
+	encoded := k.encodeTransaction()
+	sig := signTransaction(encoded, p.privatekey)
+	//log.Info(hex.EncodeToString(buildSignedTransaction(sig, encoded)))
+	transaction := buildSignedTransaction(sig, encoded)
+	return submitTransaction(transaction, w)
 }
 
 func main() {
-	//fmt.Println(signTransaction("0xF8C5D2C582CF088001C3808080C3808080C3808080F8B0EB94C53AEE876D24B2E0634362F732118EBB67A20E1494000000000000000000000000000000000000000002EB947DAFB4442C112C76F2437AF717BB8A1EA0F146BF94000000000000000000000000000000000000000040EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080EB94000000000000000000000000000000000000000094000000000000000000000000000000000000000080", "0x17b5c8b364f2687f416f2c414f9482abba984b9cf833cdfa20157377975d156e"))
-	
-	c := plasmaTransaction{blknum: 43000, txindex: 0, oindex: 1, cur12: common.HexToAddress("0000000000000000000000000000000000000000"), newowner: common.HexToAddress("0x7dafb4442c112c76f2437af717bb8a1ea0f146bf"), oldowner: common.HexToAddress("0xc53aee876d24b2e0634362f732118ebb67a20e14"), toamount: 1000, fromamount: 9801}
-	k := c.createBasicTransaction()																			  
-	encoded := k.encodeTransaction()
-	sig := signTransaction(encoded, "3a0adcf75ed744225fbe3b07ba949d1a26685c2ee56d38025c2762dbdd4a73c6")
-	buildSignedTransaction(sig, encoded)
-
 	logFormatter()
 	log.Info("Starting OmiseGO Plasma MoreVP CLI")
 	switch kingpin.Parse() {
@@ -812,9 +799,19 @@ func main() {
 		d := plasmaDeposit{privateKey: *privateKey, client: *client, contract: *contract}
 		d.depositToPlasmaContract()
 	case transaction.FullCommand():
-		//plasma_cli transaction --block --txindex --oindex --currency --newowner --amount
-		//t := plasmaTransaction{blknum: convertStringToInt(*blknum), txindex: convertStringToInt(*txindex), oindex: convertStringToInt(*oindex), cur12: *cur12, newowner: *newowner, amount: convertStringToFloat64(*amount)}
-		//t.createPlasmaTransaction(*signing)
+		//plasma_cli transaction --blknum --txindex --oindex --cur12 --toowner --fromowner --privatekey --toamount --fromamount --watcher
+		watcher := *watcherSubmitURL
+		c := plasmaTransaction{
+			blknum: *blknum, 
+			txindex: *txindex, 
+			oindex: *oindex, 
+			cur12: common.HexToAddress(*cur12), 
+			toowner: common.HexToAddress(*toowner), 
+			fromowner: common.HexToAddress(*fromowner),
+			privatekey: *privatekey, 
+			toamount: *toamount, 
+			fromamount: *fromamount}
+		c.sendBasicTransaction(watcher)
 	case exit.FullCommand():
 		//plasma_cli exit --utxo=1000000000 --privatekey=foo --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --watcher=watcher-staging.omg.network
 		s := standardExit{utxoPosition: convertStringToInt(*utxoPosition), contract: *contractExit, privateKey: *exitPrivateKey, client: *clientExit}
