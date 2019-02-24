@@ -35,6 +35,8 @@ var (
 	privateKey = deposit.Flag("privatekey", "Private key of the account used to send funds into Plasma MoreVP").Required().String()
 	client = deposit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 	contract = deposit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
+	depositOwner = deposit.Flag("owner", "Owner of the UTXOs").Required().String()
+	depositAmount = deposit.Flag("amount", "Amount to deposit in wei").Required().String()
 	transaction = kingpin.Command("transaction", "Create a transaction on the OmiseGO Plasma MoreVP network")
 	blknum = transaction.Flag("blknum", "Block number").Required().Uint()
 	txindex = transaction.Flag("txindex", "Transaction Index").Required().Uint()
@@ -60,6 +62,29 @@ var (
 	create = kingpin.Command("create", "Create a resource.")
 	createAccount = create.Command("account", "Create an account consisting of Public and Private key")
 )
+
+type Inner struct {
+	Values []inputDeposit
+	Values2 []interface{}
+}
+
+type InputTwo struct {
+	OwnerAddress common.Address
+    Currency common.Address
+    Amount uint64
+}
+
+type deposits struct {
+    OwnerAddress common.Address
+    Currency common.Address
+    Amount uint64
+}
+
+type second struct {
+	Currency1 common.Address
+	Currency2 common.Address
+	Value uint
+}
 
 type processExit struct {
 	contract string
@@ -102,9 +127,9 @@ type plasmaTransaction struct {
 	blknum uint
 	txindex uint
 	oindex uint
-	cur12 common.Address 
-	toowner common.Address 
-	fromowner common.Address 
+	cur12 common.Address
+	toowner common.Address
+	fromowner common.Address
 	toamount uint
 	fromamount uint
 	privatekey string
@@ -114,6 +139,8 @@ type plasmaDeposit struct {
 	privateKey string
 	client string
 	contract string
+	amount string
+	owner string
 }
 
 type watcherStatus struct {
@@ -165,6 +192,12 @@ type outputUTXO struct {
 	OwnerAddress common.Address  `json:"owner"`
 	Amount uint `json:"amount"`
 	Currency common.Address `json:"currency"`
+}
+
+type inputDeposit struct {
+	Txindex  uint    `json:"txindex"`
+	Oindex   uint    `json:"oindex"`
+	Blknum   uint    `json:"blknum"`
 }
 
 type createdTx struct {
@@ -307,7 +340,7 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	privateKey, err := crypto.HexToECDSA(filterZeroX(d.privateKey))
 	if err != nil {
 		log.Fatal(err)
@@ -325,22 +358,25 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 		log.Fatal(err)
 	}
 
+	amount, err := strconv.ParseInt(d.amount, 10, 32)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(100)   // in wei
+
+	auth.Value = big.NewInt(amount)   // in wei
 	auth.GasLimit = uint64(210000) // in units
 	auth.GasPrice = gasPrice
 
 	address := common.HexToAddress(d.contract)
-	// TODO(jbunce) Add support for the bytes representation of the RLP encoding from
-	// a struct of the values. This implementation supports a fixed address, value,
-	// and currency.
-	//owner := "\x94J\x81\xbe\xec\xac\x91\x80'\x87\xfb\xcf\xb9v\x7f\xcb\xf8\x1d\xb1\xf5"
-	rlpInputs := []byte("\xf8\xc3\xd0\xc3\x80\x80\x80\xc3\x80\x80\x80\xc3\x80\x80\x80\xc3\x80\x80\x80\xf8\xb0\xeb\x94\x94J\x81\xbe\xec\xac\x91\x80'\x87\xfb\xcf\xb9v\x7f\xcb\xf8\x1d\xb1\xf5\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00d\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80")
+
+	rlpInputs := buildRLPInput(removeLeadingZeroX(d.owner), d.amount)
 	instance, err := rootchain.NewRootchain(address, client)
 	if err != nil {
 		log.Fatal(err)
@@ -348,13 +384,60 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	t := &bind.TransactOpts{}
 	t.From = fromAddress
 	t.Signer = auth.Signer
-	t.Value = big.NewInt(100)
+	t.Value = big.NewInt(amount)
 	tx, err := instance.Deposit(t, rlpInputs)
 	if err != nil {
 		log.Fatal(err)
 	} else {
 		log.Info("Deposit to Plasma MoreVP contract sent. Transaction: ", tx.Hash().Hex())
 	}
+}
+
+// Build the RLP encoded input to the smart contract
+// that deposit will accept.
+func buildRLPInput(address string, value string) []byte {
+	// [[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],[[alice_raw, eth_raw, 10], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0]]]
+	v := make([]inputDeposit, 0)
+
+	test := Inner{}
+
+	NULL_INPUT := inputDeposit{Blknum: 0, Txindex: 0, Oindex: 0}
+	v = append(v, NULL_INPUT)
+	v = append(v, NULL_INPUT)
+	v = append(v, NULL_INPUT)
+	v = append(v, NULL_INPUT)
+
+	test.Values = v
+
+	cur := common.HexToAddress("0000000000000000000000000000000000000000")
+	amount, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	t3 := InputTwo{}
+	t3.OwnerAddress = common.HexToAddress(address)
+	t3.Currency = cur
+	t3.Amount = uint64(amount)
+
+	s1 := second{Currency1: cur, Currency2: cur, Value: 0}
+	s2 := second{Currency1: cur, Currency2: cur, Value: 0}
+	s3 := second{Currency1: cur, Currency2: cur, Value: 0}
+
+	arr := make([]interface{}, 0)
+	arr = append(arr, t3)
+	arr = append(arr, s1)
+	arr = append(arr, s2)
+	arr = append(arr, s3)
+
+	test.Values2 = arr
+
+	rlpEncoded, rerr := rlp.EncodeToBytes(test)
+	if rerr != nil {
+		log.Fatal(rerr)
+	}
+
+	return rlpEncoded
 }
 
 func getWatcherStatus(w string) {
@@ -643,7 +726,7 @@ func signTransaction(unsignedTx string, privateKey string) []byte {
 	copy(signature[64:], []uint8{signature[64] + 27})
 
 	log.Info("transaction signed: ", signature)
-	return signature 
+	return signature
 }
 
 //create a basic transaction with 1 input splitted into 2 outputs
@@ -659,15 +742,15 @@ func (p *plasmaTransaction) createBasicTransaction() createdTx {
 	//output two is the change
 	if p.fromamount < p.toamount {
 		log.Fatal("UTXO not large enough to be sent")
-	}	
+	}
 	outputTwo := outputUTXO{ OwnerAddress: p.fromowner, Amount: p.fromamount - p.toamount, Currency: p.cur12 }
-	
+
 	var i []inputUTXO
 	var o []outputUTXO
 	i = append(i, singleInput, NULL_INPUT, NULL_INPUT, NULL_INPUT)
 	o = append(o, outputOne, outputTwo, NULL_OUTPUT, NULL_OUTPUT)
 	transaction := createdTx{Inputs: i, Outputs: o}
-	
+
 	log.Info("Raw Transaction: ", transaction)
 	return transaction
 }
@@ -693,7 +776,7 @@ func (c *createdTx) encodeTransaction() string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	log.Info("Hex encoded transaction: ", encodedBytes)
 	return hex.EncodeToString(encodedBytes)
 }
@@ -722,7 +805,7 @@ func buildSignedTransaction(signature []byte, unsignedTX string) []byte{
 //submit transaction to endpoint, take tx byte and watcher url
 func submitTransaction(tx []byte, w string) transactionSuccessResponse{
 	txstring := "0x" + hex.EncodeToString(tx)
-	
+
 	// Build request
 	var url strings.Builder
 	url.WriteString(w)
@@ -769,8 +852,8 @@ func submitTransaction(tx []byte, w string) transactionSuccessResponse{
 }
 
 //minimal send transaction function, take utxo and send to an address
-func (p *plasmaTransaction) sendBasicTransaction(w string) transactionSuccessResponse {							
-	k := p.createBasicTransaction()														  
+func (p *plasmaTransaction) sendBasicTransaction(w string) transactionSuccessResponse {
+	k := p.createBasicTransaction()
 	encoded := k.encodeTransaction()
 	sig := signTransaction(encoded, p.privatekey)
 	//log.Info(hex.EncodeToString(buildSignedTransaction(sig, encoded)))
@@ -796,20 +879,20 @@ func main() {
 		getWatcherStatus(*watcherURL)
 	case deposit.FullCommand():
 		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377
-		d := plasmaDeposit{privateKey: *privateKey, client: *client, contract: *contract}
+		d := plasmaDeposit{privateKey: *privateKey, client: *client, contract: *contract, amount: *depositAmount, owner: *depositOwner}
 		d.depositToPlasmaContract()
 	case transaction.FullCommand():
 		//plasma_cli transaction --blknum --txindex --oindex --cur12 --toowner --fromowner --privatekey --toamount --fromamount --watcher
 		watcher := *watcherSubmitURL
 		c := plasmaTransaction{
-			blknum: *blknum, 
-			txindex: *txindex, 
-			oindex: *oindex, 
-			cur12: common.HexToAddress(*cur12), 
-			toowner: common.HexToAddress(*toowner), 
+			blknum: *blknum,
+			txindex: *txindex,
+			oindex: *oindex,
+			cur12: common.HexToAddress(*cur12),
+			toowner: common.HexToAddress(*toowner),
 			fromowner: common.HexToAddress(*fromowner),
-			privatekey: *privatekey, 
-			toamount: *toamount, 
+			privatekey: *privatekey,
+			toamount: *toamount,
 			fromamount: *fromamount}
 		c.sendBasicTransaction(watcher)
 	case exit.FullCommand():
@@ -823,7 +906,7 @@ func main() {
 		log.Info("Calling process exits in the Plasma contract")
 		p.plasmaProcessExits(100)
 	case createAccount.FullCommand():
-		//plasma_cli create account 
+		//plasma_cli create account
 		log.Info("Generating Keypair")
 		generateAccount()
 	}
