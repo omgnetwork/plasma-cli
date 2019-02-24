@@ -63,6 +63,35 @@ var (
 	createAccount = create.Command("account", "Create an account consisting of Public and Private key")
 )
 
+type Inner struct {
+	Values []inputDeposit
+	Values2 []interface{}
+}
+
+type InputTwo struct {
+	OwnerAddress common.Address
+    Currency common.Address
+    Amount uint64
+}
+
+type deposits struct {
+    OwnerAddress common.Address
+    Currency common.Address
+    Amount uint64
+}
+
+type second struct {
+	Currency1 common.Address
+	Currency2 common.Address
+	Value uint
+}
+
+type emptyInput struct {
+	one uint
+	two uint
+	three uint
+}
+
 type processExit struct {
 	contract string
 	privateKey string
@@ -169,6 +198,12 @@ type outputUTXO struct {
 	OwnerAddress common.Address  `json:"owner"`
 	Amount uint `json:"amount"`
 	Currency common.Address `json:"currency"`
+}
+
+type inputDeposit struct {
+	Txindex  uint    `json:"txindex"`
+	Oindex   uint    `json:"oindex"`
+	Blknum   uint    `json:"blknum"`
 }
 
 type createdTx struct {
@@ -329,6 +364,11 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 		log.Fatal(err)
 	}
 
+	amount, err := strconv.ParseInt(d.amount, 10, 32)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
 		log.Fatal(err)
@@ -336,7 +376,7 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
 
-	auth.Value = big.NewInt(100)   // in wei
+	auth.Value = big.NewInt(amount)   // in wei
 	auth.GasLimit = uint64(210000) // in units
 	auth.GasPrice = gasPrice
 
@@ -350,7 +390,7 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	t := &bind.TransactOpts{}
 	t.From = fromAddress
 	t.Signer = auth.Signer
-	t.Value = big.NewInt(100)
+	t.Value = big.NewInt(amount)
 	tx, err := instance.Deposit(t, rlpInputs)
 	if err != nil {
 		log.Fatal(err)
@@ -359,55 +399,22 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	}
 }
 
-type Inner struct {
-	Values []emptyInput
-	Values2 []interface{}
-}
-
-type InputTwo struct {
-	OwnerAddress common.Address
-    Currency common.Address
-    Amount uint64
-}
-
-type deposits struct {
-    OwnerAddress common.Address
-    Currency common.Address
-    Amount uint64
-}
-
-type second struct {
-	Currency1 common.Address
-	Currency2 common.Address
-	Value uint
-}
-
-type emptyInput struct {
-	one uint
-	two uint
-	three uint
-}
-
 // Build the RLP encoded input to the smart contract
 // that deposit will accept.
 func buildRLPInput(address string, value string) []byte {
 	// [[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],[[alice_raw, eth_raw, 10], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0]]]
-	v := make([]emptyInput, 0)
-
-	e := emptyInput{}
-	e.one = 0
-	e.two = 0
-	e.three = 0
-	v = append(v, e)
-	v = append(v, e)
-	v = append(v, e)
-	v = append(v, e)
+	v := make([]inputDeposit, 0)
 
 	test := Inner{}
 
+	NULL_INPUT := inputDeposit{Blknum: 0, Txindex: 0, Oindex: 0}
+	v = append(v, NULL_INPUT)
+	v = append(v, NULL_INPUT)
+	v = append(v, NULL_INPUT)
+	v = append(v, NULL_INPUT)
+
 	test.Values = v
 
-	//cur := common.HexToAddress("0000000000000000000000000000000000000000")
 	cur := common.HexToAddress("0000000000000000000000000000000000000000")
 	amount, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
@@ -431,19 +438,12 @@ func buildRLPInput(address string, value string) []byte {
 
 	test.Values2 = arr
 
-
-	log.Info(test)
-
 	rlpEncoded, rerr := rlp.EncodeToBytes(test)
 	if rerr != nil {
 		log.Fatal(rerr)
 	}
-	log.Info(rlpEncoded)
-	log.Info(string(rlpEncoded))
-	foo := hex.EncodeToString(rlpEncoded)
-	log.Info(foo)
 
-	return []byte("\xf8\xb7\xc4\xc0\xc0\xc0\xc0\xf8\xb0\xeb\x94\x94J\x81\xbe\xec\xac\x91\x80'\x87\xfb\xcf\xb9v\x7f\xcb\xf8\x1d\xb1\xf5\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00d\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80")
+	return rlpEncoded
 }
 
 func getWatcherStatus(w string) {
