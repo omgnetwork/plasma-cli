@@ -86,12 +86,6 @@ type second struct {
 	Value uint
 }
 
-type emptyInput struct {
-	one uint
-	two uint
-	three uint
-}
-
 type processExit struct {
 	contract string
 	privateKey string
