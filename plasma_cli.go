@@ -336,7 +336,7 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
 
-	auth.Value = big.NewInt(200)   // in wei
+	auth.Value = big.NewInt(100)   // in wei
 	auth.GasLimit = uint64(210000) // in units
 	auth.GasPrice = gasPrice
 
@@ -350,7 +350,7 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	t := &bind.TransactOpts{}
 	t.From = fromAddress
 	t.Signer = auth.Signer
-	t.Value = big.NewInt(200)
+	t.Value = big.NewInt(100)
 	tx, err := instance.Deposit(t, rlpInputs)
 	if err != nil {
 		log.Fatal(err)
@@ -379,13 +379,13 @@ type deposits struct {
 type second struct {
 	Currency1 common.Address
 	Currency2 common.Address
-	Value uint64
+	Value uint
 }
 
 type emptyInput struct {
-	one uint64
-	two uint64
-	three uint64
+	one uint
+	two uint
+	three uint
 }
 
 // Build the RLP encoded input to the smart contract
@@ -407,8 +407,8 @@ func buildRLPInput(address string, value string) []byte {
 
 	test.Values = v
 
+	//cur := common.HexToAddress("0000000000000000000000000000000000000000")
 	cur := common.HexToAddress("0000000000000000000000000000000000000000")
-
 	amount, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
 		log.Fatal(err)
@@ -417,7 +417,7 @@ func buildRLPInput(address string, value string) []byte {
 	t3 := InputTwo{}
 	t3.OwnerAddress = common.HexToAddress(address)
 	t3.Currency = cur
-	t3.Amount = amount
+	t3.Amount = uint64(amount)
 
 	s1 := second{Currency1: cur, Currency2: cur, Value: 0}
 	s2 := second{Currency1: cur, Currency2: cur, Value: 0}
@@ -434,15 +434,16 @@ func buildRLPInput(address string, value string) []byte {
 
 	log.Info(test)
 
-
 	rlpEncoded, rerr := rlp.EncodeToBytes(test)
 	if rerr != nil {
 		log.Fatal(rerr)
 	}
 	log.Info(rlpEncoded)
 	log.Info(string(rlpEncoded))
+	foo := hex.EncodeToString(rlpEncoded)
+	log.Info(foo)
 
-	return rlpEncoded
+	return []byte("\xf8\xb7\xc4\xc0\xc0\xc0\xc0\xf8\xb0\xeb\x94\x94J\x81\xbe\xec\xac\x91\x80'\x87\xfb\xcf\xb9v\x7f\xcb\xf8\x1d\xb1\xf5\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00d\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\xeb\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x94\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80")
 }
 
 func getWatcherStatus(w string) {
