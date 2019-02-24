@@ -104,9 +104,9 @@ type plasmaTransaction struct {
 	blknum uint
 	txindex uint
 	oindex uint
-	cur12 common.Address 
-	toowner common.Address 
-	fromowner common.Address 
+	cur12 common.Address
+	toowner common.Address
+	fromowner common.Address
 	toamount uint
 	fromamount uint
 	privatekey string
@@ -311,7 +311,7 @@ func (d *plasmaDeposit) depositToPlasmaContract() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	privateKey, err := crypto.HexToECDSA(filterZeroX(d.privateKey))
 	if err != nil {
 		log.Fatal(err)
@@ -732,7 +732,7 @@ func signTransaction(unsignedTx string, privateKey string) []byte {
 	copy(signature[64:], []uint8{signature[64] + 27})
 
 	log.Info("transaction signed: ", signature)
-	return signature 
+	return signature
 }
 
 //create a basic transaction with 1 input splitted into 2 outputs
@@ -748,15 +748,15 @@ func (p *plasmaTransaction) createBasicTransaction() createdTx {
 	//output two is the change
 	if p.fromamount < p.toamount {
 		log.Fatal("UTXO not large enough to be sent")
-	}	
+	}
 	outputTwo := outputUTXO{ OwnerAddress: p.fromowner, Amount: p.fromamount - p.toamount, Currency: p.cur12 }
-	
+
 	var i []inputUTXO
 	var o []outputUTXO
 	i = append(i, singleInput, NULL_INPUT, NULL_INPUT, NULL_INPUT)
 	o = append(o, outputOne, outputTwo, NULL_OUTPUT, NULL_OUTPUT)
 	transaction := createdTx{Inputs: i, Outputs: o}
-	
+
 	log.Info("Raw Transaction: ", transaction)
 	return transaction
 }
@@ -782,7 +782,7 @@ func (c *createdTx) encodeTransaction() string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	log.Info("Hex encoded transaction: ", encodedBytes)
 	return hex.EncodeToString(encodedBytes)
 }
@@ -811,7 +811,7 @@ func buildSignedTransaction(signature []byte, unsignedTX string) []byte{
 //submit transaction to endpoint, take tx byte and watcher url
 func submitTransaction(tx []byte, w string) transactionSuccessResponse{
 	txstring := "0x" + hex.EncodeToString(tx)
-	
+
 	// Build request
 	var url strings.Builder
 	url.WriteString(w)
@@ -858,8 +858,8 @@ func submitTransaction(tx []byte, w string) transactionSuccessResponse{
 }
 
 //minimal send transaction function, take utxo and send to an address
-func (p *plasmaTransaction) sendBasicTransaction(w string) transactionSuccessResponse {							
-	k := p.createBasicTransaction()														  
+func (p *plasmaTransaction) sendBasicTransaction(w string) transactionSuccessResponse {
+	k := p.createBasicTransaction()
 	encoded := k.encodeTransaction()
 	sig := signTransaction(encoded, p.privatekey)
 	//log.Info(hex.EncodeToString(buildSignedTransaction(sig, encoded)))
@@ -891,14 +891,14 @@ func main() {
 		//plasma_cli transaction --blknum --txindex --oindex --cur12 --toowner --fromowner --privatekey --toamount --fromamount --watcher
 		watcher := *watcherSubmitURL
 		c := plasmaTransaction{
-			blknum: *blknum, 
-			txindex: *txindex, 
-			oindex: *oindex, 
-			cur12: common.HexToAddress(*cur12), 
-			toowner: common.HexToAddress(*toowner), 
+			blknum: *blknum,
+			txindex: *txindex,
+			oindex: *oindex,
+			cur12: common.HexToAddress(*cur12),
+			toowner: common.HexToAddress(*toowner),
 			fromowner: common.HexToAddress(*fromowner),
-			privatekey: *privatekey, 
-			toamount: *toamount, 
+			privatekey: *privatekey,
+			toamount: *toamount,
 			fromamount: *fromamount}
 		c.sendBasicTransaction(watcher)
 	case exit.FullCommand():
@@ -912,7 +912,7 @@ func main() {
 		log.Info("Calling process exits in the Plasma contract")
 		p.plasmaProcessExits(100)
 	case createAccount.FullCommand():
-		//plasma_cli create account 
+		//plasma_cli create account
 		log.Info("Generating Keypair")
 		generateAccount()
 	}
