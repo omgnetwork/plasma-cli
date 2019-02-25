@@ -85,8 +85,8 @@ type Inner struct {
 
 type InputTwo struct {
 	OwnerAddress common.Address
-    Currency common.Address
-    Amount uint64
+	Currency common.Address
+	Amount uint64
 }
 
 type deposits struct {
