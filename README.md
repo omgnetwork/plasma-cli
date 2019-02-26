@@ -20,7 +20,7 @@ plasma_cli.go get utxos --watcher=<watcher URL> --address=<public key of owner>
 ## How do I create a transaction?
 
 ```
-plasma_cli transaction --blknum --txindex --oindex --cur12 --toowner --fromowner --privatekey --toamount --fromamount --watcher
+plasma_cli transaction --fromutxo=<UTXO position> --fromowner=<from address> --privatekey=<from privatekey> --toowner=<to address> --toamount=<to amount>  --watcher=<watcher url>
 ```
 
 ## How do I exit back to Ethereum?

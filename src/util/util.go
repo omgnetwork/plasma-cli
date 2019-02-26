@@ -2,36 +2,36 @@ package util
 
 import (
 	"encoding/hex"
-	log "github.com/sirupsen/logrus"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	log "github.com/sirupsen/logrus"
 )
 
 type Inner struct {
-	Values []inputDeposit
+	Values  []inputDeposit
 	Values2 []interface{}
 }
 
 type inputDeposit struct {
-	Txindex  uint    `json:"txindex"`
-	Oindex   uint    `json:"oindex"`
-	Blknum   uint    `json:"blknum"`
+	Txindex uint `json:"txindex"`
+	Oindex  uint `json:"oindex"`
+	Blknum  uint `json:"blknum"`
 }
 
 type InputTwo struct {
 	OwnerAddress common.Address
-    Currency common.Address
-    Amount uint64
+	Currency     common.Address
+	Amount       uint64
 }
 
 type second struct {
 	Currency1 common.Address
 	Currency2 common.Address
-	Value uint
+	Value     uint
 }
 
 type WatcherUTXOsFromAddress struct {
