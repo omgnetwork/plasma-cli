@@ -4,31 +4,30 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"encoding/json"
 	"encoding/hex"
-	log "github.com/sirupsen/logrus"
+	"encoding/json"
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"strings"
-	"strconv"
-
 	"rootchain"
+	"strconv"
+	"strings"
 	"util"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
+	log "github.com/sirupsen/logrus"
 )
 
 type PlasmaDeposit struct {
 	PrivateKey string
-	Client string
-	Contract string
-	Amount string
-	Owner string
+	Client     string
+	Contract   string
+	Amount     string
+	Owner      string
 }
 
 type Signature struct {
@@ -79,40 +78,40 @@ type blockNumberError struct {
 }
 
 type Inner struct {
-	Values []inputDeposit
+	Values  []inputDeposit
 	Values2 []interface{}
 }
 
 type InputTwo struct {
 	OwnerAddress common.Address
-	Currency common.Address
-	Amount uint64
+	Currency     common.Address
+	Amount       uint64
 }
 
 type deposits struct {
-    OwnerAddress common.Address
-    Currency common.Address
-    Amount uint64
+	OwnerAddress common.Address
+	Currency     common.Address
+	Amount       uint64
 }
 
 type second struct {
 	Currency1 common.Address
 	Currency2 common.Address
-	Value uint
+	Value     uint
 }
 
 type ProcessExit struct {
-	Contract string
+	Contract   string
 	PrivateKey string
-	Token string
-	Client string
+	Token      string
+	Client     string
 }
 
 type StandardExit struct {
 	UtxoPosition int
-	PrivateKey string
-	Contract string
-	Client string
+	PrivateKey   string
+	Contract     string
+	Client       string
 }
 
 type standardExitUTXOError struct {
@@ -132,20 +131,20 @@ type StandardExitUTXOData struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
 	Data    struct {
-		UtxoPos *big.Int  `json:"utxo_pos"`
-		Txbytes string `json:"txbytes"`
-		Proof   string `json:"proof"`
+		UtxoPos *big.Int `json:"utxo_pos"`
+		Txbytes string   `json:"txbytes"`
+		Proof   string   `json:"proof"`
 	} `json:"data"`
 }
 
 type PlasmaTransaction struct {
-	Blknum uint
-	Txindex uint
-	Oindex uint
-	Cur12 common.Address
-	Toowner common.Address
-	Fromowner common.Address
-	Toamount uint
+	Blknum     uint
+	Txindex    uint
+	Oindex     uint
+	Cur12      common.Address
+	Toowner    common.Address
+	Fromowner  common.Address
+	Toamount   uint
 	Fromamount uint
 	Privatekey string
 }
@@ -172,72 +171,85 @@ type watcherError struct {
 	} `json:"data"`
 }
 
-
 type inputUTXO struct {
-	Txindex  uint    `json:"txindex"`
-	Oindex   uint    `json:"oindex"`
-	Currency common.Address `json:"currency"`
-	Blknum   uint    `json:"blknum"`
-	Amount   uint    `json:"amount"`
+	Txindex uint `json:"txindex"`
+	Oindex  uint `json:"oindex"`
+	Blknum  uint `json:"blknum"`
+	Amount  uint `json:"amount"`
 }
 
 type outputUTXO struct {
-	OwnerAddress common.Address  `json:"owner"`
-	Amount uint `json:"amount"`
-	Currency common.Address `json:"currency"`
+	OwnerAddress common.Address `json:"owner"`
+	Amount       uint           `json:"amount"`
+	Currency     common.Address `json:"currency"`
 }
 
 type inputDeposit struct {
-	Txindex  uint    `json:"txindex"`
-	Oindex   uint    `json:"oindex"`
-	Blknum   uint    `json:"blknum"`
+	Txindex uint `json:"txindex"`
+	Oindex  uint `json:"oindex"`
+	Blknum  uint `json:"blknum"`
 }
 
 type createdTx struct {
-	Inputs []inputUTXO `json:"inputs"`
+	Inputs  []inputUTXO  `json:"inputs"`
 	Outputs []outputUTXO `json:"outputs"`
 }
 
 type input struct {
-	Blknum uint
+	Blknum  uint
 	Txindex uint
-	Oindex uint
+	Oindex  uint
 }
 
 type output struct {
 	OwnerAddress common.Address
-	Currency common.Address
-	Amount uint
+	Currency     common.Address
+	Amount       uint
 }
 
 type transactionToEncode struct {
-	Inputs []input
+	Inputs  []input
 	Outputs []output
 }
 
 type transactionToBuild struct {
-	Sig Signature
-	Inputs []input
+	Sig     Signature
+	Inputs  []input
 	Outputs []output
 }
 
-//const signatureLength = 65
+type SingleUTXO struct {
+	UtxoPos  int    `json:"utxo_pos"`
+	Txindex  int    `json:"txindex"`
+	Owner    string `json:"owner"`
+	Oindex   int    `json:"oindex"`
+	Currency string `json:"currency"`
+	Blknum   int    `json:"blknum"`
+	Amount   int    `json:"amount"`
+}
 
 // Create a basic transaction with 1 input splitted into 2 outputs
+// if from == to amount, create single output
 func (p *PlasmaTransaction) createBasicTransaction() createdTx {
 	//creates 1 input, 2 outputs tx
 	NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
-	NULL_INPUT  := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0, Currency: NULL_ADDRESS}
+	NULL_INPUT := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0}
 	NULL_OUTPUT := outputUTXO{OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS}
 	//1 single input
-	singleInput := inputUTXO{Blknum: p.Blknum, Txindex: p.Txindex, Oindex: p.Oindex, Currency: p.Cur12}
+	singleInput := inputUTXO{Blknum: p.Blknum, Txindex: p.Txindex, Oindex: p.Oindex}
 	//output one is value you are sending
 	outputOne := outputUTXO{OwnerAddress: p.Toowner, Amount: p.Toamount, Currency: p.Cur12}
 	//output two is the change
+	var outputTwo outputUTXO
+	if p.Fromamount == p.Toamount {
+		outputTwo = outputUTXO{OwnerAddress: p.Fromowner, Amount: p.Toamount, Currency: p.Cur12}
+	} else {
+		outputTwo = outputUTXO{OwnerAddress: p.Fromowner, Amount: p.Fromamount - p.Toamount, Currency: p.Cur12}
+	}
+
 	if p.Fromamount < p.Toamount {
 		log.Fatal("UTXO not large enough to be sent")
 	}
-	outputTwo := outputUTXO{OwnerAddress: p.Fromowner, Amount: p.Fromamount - p.Toamount, Currency: p.Cur12}
 
 	var i []inputUTXO
 	var o []outputUTXO
@@ -276,7 +288,7 @@ func (c *createdTx) encodeTransaction() string {
 }
 
 // Submit transaction to endpoint, take tx byte and watcher URL
-func submitTransaction(tx []byte, w string) transactionSuccessResponse{
+func submitTransaction(tx []byte, w string) transactionSuccessResponse {
 	txstring := "0x" + hex.EncodeToString(tx)
 
 	// Build request
@@ -324,6 +336,18 @@ func submitTransaction(tx []byte, w string) transactionSuccessResponse{
 	return response
 }
 
+//wraps getUTXOsfromAddress, return a utxo from given position
+func GetUTXO(address string, position uint, watcher string) SingleUTXO {
+	tt := GetUTXOsFromAddress(address, watcher)
+	var single SingleUTXO
+	for _, t := range tt.Data {
+		if uint(t.UtxoPos) == position {
+			single = t
+		}
+	}
+	return single
+}
+
 // Minimal send transaction function, take UTXO and send to an address
 func (p *PlasmaTransaction) SendBasicTransaction(w string) transactionSuccessResponse {
 	k := p.createBasicTransaction()
@@ -331,11 +355,12 @@ func (p *PlasmaTransaction) SendBasicTransaction(w string) transactionSuccessRes
 	sig := util.SignTransaction(encoded, p.Privatekey)
 	//log.Info(hex.EncodeToString(buildSignedTransaction(sig, encoded)))
 	transaction := buildSignedTransaction(sig, encoded)
+	log.Info(transaction)
 	return submitTransaction(transaction, w)
 }
 
 // Deecode RLP, and rebuild transaction with signature, finally encode the whole thing
-func buildSignedTransaction(signature []byte, unsignedTX string) []byte{
+func buildSignedTransaction(signature []byte, unsignedTX string) []byte {
 	var tx transactionToEncode
 	//RLP decode unsignedTx
 	decoded, err := hex.DecodeString(unsignedTX)
@@ -493,7 +518,6 @@ func GetUTXOsFromAddress(address string, w string) util.WatcherUTXOsFromAddress 
 	return response
 }
 
-
 // Start standard exit by calling the method in the smart contract
 func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract string, private string) {
 	client, err := ethclient.Dial(ethereumClient)
@@ -524,8 +548,8 @@ func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract
 	}
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(31415926535)    // in wei
-	auth.GasLimit = uint64(210000) // in units
+	auth.Value = big.NewInt(31415926535) // in wei
+	auth.GasLimit = uint64(210000)       // in units
 	auth.GasPrice = gasPrice
 
 	address := common.HexToAddress(contract)
@@ -540,7 +564,7 @@ func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract
 	t.GasLimit = 2000000
 
 	txBytesHex, txErr := hex.DecodeString(util.RemoveLeadingZeroX(s.Data.Txbytes))
-	if txErr != nil{
+	if txErr != nil {
 		log.Fatal(txErr)
 	}
 
@@ -592,8 +616,8 @@ func (d *PlasmaDeposit) DepositToPlasmaContract() {
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
 
-	auth.Value = big.NewInt(amount)   // in wei
-	auth.GasLimit = uint64(210000) // in units
+	auth.Value = big.NewInt(amount) // in wei
+	auth.GasLimit = uint64(210000)  // in units
 	auth.GasPrice = gasPrice
 
 	address := common.HexToAddress(d.Contract)
@@ -646,7 +670,7 @@ func ProcessExits(numberExitsToProcess int64, p ProcessExit) {
 	}
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)    // in wei
+	auth.Value = big.NewInt(0)     // in wei
 	auth.GasLimit = uint64(210000) // in units
 	auth.GasPrice = gasPrice
 
