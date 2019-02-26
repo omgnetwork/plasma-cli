@@ -92,8 +92,5 @@ func ParseArgs() {
 		//plasma_cli create account
 		log.Info("Generating Keypair")
 		util.GenerateAccount()
-		log.Info(plasma.GetUTXO("0xc53aee876d24b2e0634362f732118ebb67a20e14", 9305000000000001, "http://watcher.ari.omg.network/"))
 	}
-	//plasma.GetUTXO("0xc53aee876d24b2e0634362f732118ebb67a20e14", 9305000000000001, "http://watcher.ari.omg.network/")
-	//plasma.GetUTXOsFromAddress("0xc53aee876d24b2e0634362f732118ebb67a20e14", "http://watcher.ari.omg.network/")
 }
