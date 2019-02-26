@@ -238,12 +238,16 @@ func (p *PlasmaTransaction) createBasicTransaction() createdTx {
 	//1 single input
 	singleInput := inputUTXO{Blknum: p.Blknum, Txindex: p.Txindex, Oindex: p.Oindex}
 	//output one is value you are sending
-	outputOne := outputUTXO{OwnerAddress: p.Toowner, Amount: p.Toamount, Currency: p.Cur12}
-	//output two is the change
+	//output two is the change (NULL OUTPUT if fromamount == to amount)
+	var outputOne outputUTXO
 	var outputTwo outputUTXO
 	if p.Fromamount == p.Toamount {
-		outputTwo = outputUTXO{OwnerAddress: p.Fromowner, Amount: p.Toamount, Currency: p.Cur12}
+		//send everything
+		outputOne = outputUTXO{OwnerAddress: p.Toowner, Amount: p.Toamount, Currency: p.Cur12}
+		outputTwo = outputUTXO{OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS}
 	} else {
+		//send change to self
+		outputOne = outputUTXO{OwnerAddress: p.Toowner, Amount: p.Toamount, Currency: p.Cur12}
 		outputTwo = outputUTXO{OwnerAddress: p.Fromowner, Amount: p.Fromamount - p.Toamount, Currency: p.Cur12}
 	}
 
