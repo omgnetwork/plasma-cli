@@ -2,9 +2,9 @@ package parser
 
 import (
 	"os"
-	"plasma"
-	"util"
 
+	"github.com/plasma-cli/plasma"
+	"github.com/plasma-cli/util"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"

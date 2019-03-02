@@ -1,9 +1,8 @@
 package main
 
 import (
-	"parser"
-	"util"
-
+	"github.com/plasma-cli/parser"
+	"github.com/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 )
 
