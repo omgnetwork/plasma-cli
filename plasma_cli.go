@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/omise-go/plasma-cli/parser"
-	"github.com/omise-go/plasma-cli/util"
+	"github.com/omisego/plasma-cli/parser"
+	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 )
 
