@@ -77,29 +77,6 @@ type blockNumberError struct {
 	} `json:"data"`
 }
 
-type Inner struct {
-	Values  []inputDeposit
-	Values2 []interface{}
-}
-
-type InputTwo struct {
-	OwnerAddress common.Address
-	Currency     common.Address
-	Amount       uint64
-}
-
-type deposits struct {
-	OwnerAddress common.Address
-	Currency     common.Address
-	Amount       uint64
-}
-
-type second struct {
-	Currency1 common.Address
-	Currency2 common.Address
-	Value     uint
-}
-
 type ProcessExit struct {
 	Contract   string
 	PrivateKey string
@@ -584,7 +561,7 @@ func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract
 	}
 }
 
-//Deposit ETH into the already deployed Plasma MoreVP contract on Ethereum
+// Deposit ETH into the already deployed Plasma MoreVP contract on Ethereum
 func (d *PlasmaDeposit) DepositToPlasmaContract() {
 	client, err := ethclient.Dial(d.Client)
 	if err != nil {
@@ -700,4 +677,5 @@ func ProcessExits(numberExitsToProcess int64, p ProcessExit) {
 		log.Info("Process exits request to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
 	}
 }
+
 
