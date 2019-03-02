@@ -9,11 +9,11 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"rootchain"
 	"strconv"
 	"strings"
 
-	"github.com/plasma-cli/util"
+	"github.com/omise-go/plasma-cli/rootchain"
+	"github.com/omise-go/plasma-cli/util"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"

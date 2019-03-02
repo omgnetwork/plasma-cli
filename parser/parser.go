@@ -3,8 +3,8 @@ package parser
 import (
 	"os"
 
-	"github.com/plasma-cli/plasma"
-	"github.com/plasma-cli/util"
+	"github.com/omise-go/plasma-cli/plasma"
+	"github.com/omise-goplasma-cli/util"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
