@@ -16,9 +16,8 @@ package util
 
 import (
 	"encoding/hex"
-	"strconv"
 	"strings"
-
+	"strconv"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -149,7 +148,7 @@ func DisplayUTXOS(u WatcherUTXOsFromAddress) {
 // reversed. The correct format is:
 // [[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],[[owner_public, eth_raw, 10], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0]]]
 // where eth_raw is 20 bytes of 0.
-func BuildRLPInput(address string, value string) []byte {
+func BuildRLPInput(address string, value uint64) []byte {
 	depositUTXOPositions := make([]InputDeposit, 0)
 	deposit := DepositParent{}
 
@@ -161,16 +160,12 @@ func BuildRLPInput(address string, value string) []byte {
 
 	// TODO(jbunce): Allow deposits from ERC20 tokens
 	cur := common.HexToAddress("0000000000000000000000000000000000000000")
-	amount, err := strconv.ParseUint(value, 10, 32)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// Define the UTXO ownership and currency of the deposit
 	ownership := DepositOwnership{}
 	ownership.OwnerAddress = common.HexToAddress(address)
 	ownership.Currency = cur
-	ownership.Amount = uint64(amount)
+	ownership.Amount = value
 
 	UTXOOutputs := make([]interface{}, 0)
 	UTXOOutputs = append(UTXOOutputs, ownership)

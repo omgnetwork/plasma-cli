@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/omisego/plasma-cli/rootchain"
@@ -26,7 +25,7 @@ type PlasmaDeposit struct {
 	PrivateKey string
 	Client     string
 	Contract   string
-	Amount     string
+	Amount     uint64
 	Owner      string
 }
 
@@ -585,11 +584,6 @@ func (d *PlasmaDeposit) DepositToPlasmaContract() {
 		log.Fatal(err)
 	}
 
-	amount, err := strconv.ParseInt(d.Amount, 10, 32)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
 		log.Fatal(err)
@@ -597,8 +591,8 @@ func (d *PlasmaDeposit) DepositToPlasmaContract() {
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
 
-	auth.Value = big.NewInt(amount) // in wei
-	auth.GasLimit = uint64(210000)  // in units
+	auth.Value = big.NewInt(int64(d.Amount)) // in wei
+	auth.GasLimit = uint64(210000)           // in units
 	auth.GasPrice = gasPrice
 
 	address := common.HexToAddress(d.Contract)
@@ -611,7 +605,7 @@ func (d *PlasmaDeposit) DepositToPlasmaContract() {
 	t := &bind.TransactOpts{}
 	t.From = fromAddress
 	t.Signer = auth.Signer
-	t.Value = big.NewInt(amount)
+	t.Value = big.NewInt(int64(d.Amount))
 	tx, err := instance.Deposit(t, rlpInputs)
 	if err != nil {
 		log.Fatal(err)

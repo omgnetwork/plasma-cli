@@ -35,7 +35,7 @@ var (
 	client            = deposit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 	contract          = deposit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
 	depositOwner      = deposit.Flag("owner", "Owner of the UTXOs").Required().String()
-	depositAmount     = deposit.Flag("amount", "Amount to deposit in wei").Required().String()
+	depositAmount     = deposit.Flag("amount", "Amount to deposit in wei").Required().Uint64()
 	transaction       = kingpin.Command("transaction", "Create a transaction on the OmiseGO Plasma MoreVP network")
 	toowner           = transaction.Flag("toowner", "New owner of the UTXO").Required().String()
 	fromowner         = transaction.Flag("fromowner", "from an owner of the UTXO").Required().String()
