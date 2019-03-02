@@ -16,12 +16,12 @@ package util
 
 import (
 	"encoding/hex"
-	"strings"
-	"strconv"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	log "github.com/sirupsen/logrus"
+	"strconv"
+	"strings"
 )
 
 type DepositParent struct {
@@ -171,7 +171,7 @@ func BuildRLPInput(address string, value uint64) []byte {
 	UTXOOutputs = append(UTXOOutputs, ownership)
 
 	NULL_OUTPUT := OutputUTXO{Currency1: cur, Currency2: cur, Value: 0}
-	for i := 0; i <=3; i++ {
+	for i := 0; i <= 3; i++ {
 		UTXOOutputs = append(UTXOOutputs, NULL_OUTPUT)
 	}
 	deposit.UTXOOutputs = UTXOOutputs
@@ -193,4 +193,3 @@ func LogFormatter() {
 	}
 	log.SetFormatter(formatter)
 }
-

@@ -11,13 +11,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/omisego/plasma-cli/rootchain"
-	"github.com/omisego/plasma-cli/util"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/omisego/plasma-cli/rootchain"
+	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -671,5 +671,3 @@ func ProcessExits(numberExitsToProcess int64, p ProcessExit) {
 		log.Info("Process exits request to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
 	}
 }
-
-
