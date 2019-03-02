@@ -25,24 +25,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Inner struct {
-	Values  []inputDeposit
-	Values2 []interface{}
+type DepositParent struct {
+	UTXOInputs  []InputDeposit
+	UTXOOutputs []interface{}
 }
 
-type inputDeposit struct {
+type InputDeposit struct {
 	Txindex uint `json:"txindex"`
 	Oindex  uint `json:"oindex"`
 	Blknum  uint `json:"blknum"`
 }
 
-type InputTwo struct {
+type DepositOwnership struct {
 	OwnerAddress common.Address
 	Currency     common.Address
 	Amount       uint64
 }
 
-type second struct {
+type OutputUTXO struct {
 	Currency1 common.Address
 	Currency2 common.Address
 	Value     uint
@@ -62,7 +62,7 @@ type WatcherUTXOsFromAddress struct {
 	} `json:"data"`
 }
 
-//sign a transaction with a key
+// Sign a transaction with a key
 func SignTransaction(unsignedTx string, privateKey string) []byte {
 	//hash the unsignedTx struct
 	unsignedTxBytes, err := hex.DecodeString(FilterZeroX(unsignedTx))
@@ -86,7 +86,7 @@ func SignTransaction(unsignedTx string, privateKey string) []byte {
 	return signature
 }
 
-// generate Account - Public and Privatekey
+// Generate Account - Public and Privatekey
 func GenerateAccount() {
 	key, err := crypto.GenerateKey()
 	if err != nil {
@@ -104,7 +104,7 @@ func RemoveLeadingZeroX(item string) string {
 	return cleanedString
 }
 
-// filter our key string with 0x
+// Filter our key string with 0x
 func FilterZeroX(item string) string {
 	if strings.Contains(item, "0x") {
 		return RemoveLeadingZeroX(item)
@@ -142,47 +142,47 @@ func DisplayUTXOS(u WatcherUTXOsFromAddress) {
 	}
 }
 
-// Build the RLP encoded input to the smart contract
-// that deposit will accept.
+// Build the RLP encoded input to the smart contract that
+// deposit() will accept. The format of the UTXO inputs, outputs,
+// and ownership data is critical. If any value is incorrect the
+// deposit will be rejected by the smart contract and transaction
+// reversed. The correct format is:
+// [[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],[[owner_public, eth_raw, 10], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0]]]
+// where eth_raw is 20 bytes of 0.
 func BuildRLPInput(address string, value string) []byte {
-	// [[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],[[alice_raw, eth_raw, 10], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0]]]
-	// TODO(jbunce): This works but it's a bloody mess. Need to make it pretty.
-	v := make([]inputDeposit, 0)
+	depositUTXOPositions := make([]InputDeposit, 0)
+	deposit := DepositParent{}
 
-	test := Inner{}
+	NULL_INPUT := InputDeposit{Blknum: 0, Txindex: 0, Oindex: 0}
+	for i := 0; i <= 4; i++ {
+		depositUTXOPositions = append(depositUTXOPositions, NULL_INPUT)
+	}
+	deposit.UTXOInputs = depositUTXOPositions
 
-	NULL_INPUT := inputDeposit{Blknum: 0, Txindex: 0, Oindex: 0}
-	v = append(v, NULL_INPUT)
-	v = append(v, NULL_INPUT)
-	v = append(v, NULL_INPUT)
-	v = append(v, NULL_INPUT)
-
-	test.Values = v
-
+	// TODO(jbunce): Allow deposits from ERC20 tokens
 	cur := common.HexToAddress("0000000000000000000000000000000000000000")
 	amount, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	t3 := InputTwo{}
-	t3.OwnerAddress = common.HexToAddress(address)
-	t3.Currency = cur
-	t3.Amount = uint64(amount)
+	// Define the UTXO ownership and currency of the deposit
+	ownership := DepositOwnership{}
+	ownership.OwnerAddress = common.HexToAddress(address)
+	ownership.Currency = cur
+	ownership.Amount = uint64(amount)
 
-	s1 := second{Currency1: cur, Currency2: cur, Value: 0}
-	s2 := second{Currency1: cur, Currency2: cur, Value: 0}
-	s3 := second{Currency1: cur, Currency2: cur, Value: 0}
+	UTXOOutputs := make([]interface{}, 0)
+	UTXOOutputs = append(UTXOOutputs, ownership)
 
-	arr := make([]interface{}, 0)
-	arr = append(arr, t3)
-	arr = append(arr, s1)
-	arr = append(arr, s2)
-	arr = append(arr, s3)
+	NULL_OUTPUT := OutputUTXO{Currency1: cur, Currency2: cur, Value: 0}
+	for i := 0; i <=3; i++ {
+		UTXOOutputs = append(UTXOOutputs, NULL_OUTPUT)
+	}
+	deposit.UTXOOutputs = UTXOOutputs
 
-	test.Values2 = arr
-
-	rlpEncoded, rerr := rlp.EncodeToBytes(test)
+	// The actual RLP encoding happens here
+	rlpEncoded, rerr := rlp.EncodeToBytes(deposit)
 	if rerr != nil {
 		log.Fatal(rerr)
 	}
@@ -198,3 +198,4 @@ func LogFormatter() {
 	}
 	log.SetFormatter(formatter)
 }
+
