@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/omisego/plasma-cli/rootchain"
-	"github.com/omisego/plasma-cli/util"
+	"github.com/omisego/plasma-cli/rootchain/rootchain"
+	"github.com/omisego/plasma-cli/util/util"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
