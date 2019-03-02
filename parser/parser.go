@@ -17,9 +17,9 @@ package parser
 import (
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/omisego/plasma-cli/plasma"
 	"github.com/omisego/plasma-cli/util"
-	"github.com/ethereum/go-ethereum/common"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
