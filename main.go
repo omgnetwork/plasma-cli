@@ -16,7 +16,7 @@ package main
 
 import (
 	"github.com/omisego/plasma-cli/parser"
-	"github.com/omisego/plasma-cli/util/util"
+	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 )
 
