@@ -237,7 +237,6 @@ func (p *PlasmaTransaction) createBasicTransaction() createdTx {
 	o = append(o, outputOne, outputTwo, NULL_OUTPUT, NULL_OUTPUT)
 	transaction := createdTx{Inputs: i, Outputs: o}
 
-	log.Info("Raw Transaction: ", transaction)
 	return transaction
 }
 
@@ -257,7 +256,7 @@ func (c *createdTx) encodeTransaction() string {
 		o = append(o, t)
 	}
 	t = &transactionToEncode{Outputs: o, Inputs: i}
-	log.Info("transaction UTXOs ", t)
+
 	encodedBytes, err := rlp.EncodeToBytes(t)
 	if err != nil {
 		log.Fatal(err)
@@ -312,7 +311,7 @@ func submitTransaction(tx []byte, w string) transactionSuccessResponse {
 	} else {
 		log.Info(resp.Status)
 	}
-	log.Info(response)
+	log.Info("tx response", response)
 	return response
 }
 
@@ -335,7 +334,7 @@ func (p *PlasmaTransaction) SendBasicTransaction(w string) transactionSuccessRes
 	sig := util.SignTransaction(encoded, p.Privatekey)
 	//log.Info(hex.EncodeToString(buildSignedTransaction(sig, encoded)))
 	transaction := buildSignedTransaction(sig, encoded)
-	log.Info(transaction)
+
 	return submitTransaction(transaction, w)
 }
 
@@ -358,7 +357,7 @@ func buildSignedTransaction(signature []byte, unsignedTX string) []byte {
 	}
 	// Do we need to log the hex output to the user? Perhaps this could be a
 	// debug instead.
-	log.Info("transaction signed and built: ", hex.EncodeToString(encoded))
+
 	return encoded
 }
 
