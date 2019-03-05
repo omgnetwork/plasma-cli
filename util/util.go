@@ -16,12 +16,13 @@ package util
 
 import (
 	"encoding/hex"
+	"strconv"
+	"strings"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	log "github.com/sirupsen/logrus"
-	"strconv"
-	"strings"
 )
 
 type DepositParent struct {
@@ -86,7 +87,7 @@ func SignTransaction(unsignedTx string, privateKey string) []byte {
 }
 
 // Generate Account - Public and Privatekey
-func GenerateAccount() {
+func GenerateAccount() (string, string) {
 	key, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
@@ -95,6 +96,7 @@ func GenerateAccount() {
 	privateKey := hex.EncodeToString(key.D.Bytes())
 	log.Info("Address is ", address)
 	log.Info("Privatekey is ", privateKey)
+	return address, privateKey
 }
 
 // Make strings suitable for hex encoding
