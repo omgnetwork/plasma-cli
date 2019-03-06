@@ -75,7 +75,7 @@ func ParseArgs() {
 		//plamsa_cli get balance --address=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --watcher=http://watcher.path.net
 		ownerBalanceAddress := *ownerUTXOAddress
 		if len(ownerBalanceAddress) == 0 {
-			log.Error("Address is required to get UTXO data")
+			log.Error("Address is required to get balance")
 			os.Exit(1)
 		}
 		balance := plasma.GetBalance(ownerBalanceAddress, *watcherURL)
