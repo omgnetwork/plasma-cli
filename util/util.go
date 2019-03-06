@@ -160,12 +160,10 @@ func BuildRLPInput(address, currency string, value uint64) []byte {
 	}
 	deposit.UTXOInputs = depositUTXOPositions
 
-	if currency == "ETH" {
-		cur := common.HexToAddress("0000000000000000000000000000000000000000")
-	} else if currency == "JCO" {
-		cur := common.HexToAddress("070FB0a42F61df2db440f15cC75bECB97CaD9c26")
-	} else {
-		log.Fatal("Unknown currency type for deposit")
+	cur := common.HexToAddress("0000000000000000000000000000000000000000")
+
+	if currency == "JCO" {
+		cur = common.HexToAddress("070FB0a42F61df2db440f15cC75bECB97CaD9c26")
 	}
 
 	// Define the UTXO ownership and currency of the deposit
