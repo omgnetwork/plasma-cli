@@ -11,10 +11,16 @@ plasma_cli deposit --privatekey=<private key> --client=<local rpc server or Infu
 ```
 
 
-## How do get the UTXOs that I own?
+## How do I get the UTXOs that I own?
 
 ```
-plasma_cli.go get utxos --watcher=<watcher URL> --address=<public key of owner>
+plasma_cli get utxos --watcher=<watcher URL> --address=<public key of owner>
+```
+
+## How do I get my balance ?
+
+```
+plasma_cli get balance --watcher=<watcher URL> --address=<public key of owner>
 ```
 
 ## How do I create a transaction?
