@@ -29,6 +29,7 @@ var (
 	getUTXO           = get.Command("utxos", "Retrieve UTXO data from the Watcher service")
 	watcherURL        = get.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 	ownerUTXOAddress  = get.Flag("address", "Owner address to search UTXOs").String()
+	getBalance        = get.Command("balance", "Retrieve balance of an address from the Watcher service")
 	status            = get.Command("status", "Get status from the Watcher")
 	deposit           = kingpin.Command("deposit", "Deposit ETH or ERC20 into the Plamsa MoreVP smart contract.")
 	privateKey        = deposit.Flag("privatekey", "Private key of the account used to send funds into Plasma MoreVP").Required().String()
@@ -70,6 +71,15 @@ func ParseArgs() {
 		}
 		utxos := plasma.GetUTXOsFromAddress(ownerUTXOAddress, *watcherURL)
 		util.DisplayUTXOS(utxos)
+	case getBalance.FullCommand():
+		//plamsa_cli get balance --address=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --watcher=http://watcher.path.net
+		ownerBalanceAddress := *ownerUTXOAddress
+		if len(ownerBalanceAddress) == 0 {
+			log.Error("Address is required to get UTXO data")
+			os.Exit(1)
+		}
+		balance := plasma.GetBalance(ownerBalanceAddress, *watcherURL)
+		util.DisplayBalance(balance)
 	case status.FullCommand():
 		//plamsa_cli get status --watcher=http://watcher.path.net
 		plasma.GetWatcherStatus(*watcherURL)
