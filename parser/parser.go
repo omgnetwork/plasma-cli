@@ -36,6 +36,7 @@ var (
 	contract          = deposit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
 	depositOwner      = deposit.Flag("owner", "Owner of the UTXOs").Required().String()
 	depositAmount     = deposit.Flag("amount", "Amount to deposit in wei").Required().Uint64()
+	depositCurrency   = deposit.Flag("currency", "Currency of the deposit. Example: ETH").Required().String()
 	transaction       = kingpin.Command("transaction", "Create a transaction on the OmiseGO Plasma MoreVP network")
 	toowner           = transaction.Flag("toowner", "New owner of the UTXO").Required().String()
 	fromowner         = transaction.Flag("fromowner", "from an owner of the UTXO").Required().String()
@@ -73,8 +74,8 @@ func ParseArgs() {
 		//plamsa_cli get status --watcher=http://watcher.path.net
 		plasma.GetWatcherStatus(*watcherURL)
 	case deposit.FullCommand():
-		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377
-		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner}
+		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377 --currency=ETH
+		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
 		d.DepositToPlasmaContract()
 	case transaction.FullCommand():
 		//plasma_cli transaction --fromutxo --fromowner --privatekey --toowner --toamount --watcher

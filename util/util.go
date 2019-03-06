@@ -150,7 +150,7 @@ func DisplayUTXOS(u WatcherUTXOsFromAddress) {
 // reversed. The correct format is:
 // [[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],[[owner_public, eth_raw, 10], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0]]]
 // where eth_raw is 20 bytes of 0.
-func BuildRLPInput(address string, value uint64) []byte {
+func BuildRLPInput(address, currency string, value uint64) []byte {
 	depositUTXOPositions := make([]InputDeposit, 0)
 	deposit := DepositParent{}
 
@@ -160,8 +160,11 @@ func BuildRLPInput(address string, value uint64) []byte {
 	}
 	deposit.UTXOInputs = depositUTXOPositions
 
-	// TODO(jbunce): Allow deposits from ERC20 tokens
 	cur := common.HexToAddress("0000000000000000000000000000000000000000")
+
+	if currency == "JCO" {
+		cur = common.HexToAddress("070FB0a42F61df2db440f15cC75bECB97CaD9c26")
+	}
 
 	// Define the UTXO ownership and currency of the deposit
 	ownership := DepositOwnership{}
