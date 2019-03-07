@@ -30,8 +30,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/omisego/plasma-cli//util"
 	"github.com/omisego/plasma-cli/rootchain"
-	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -330,7 +330,7 @@ func submitTransaction(tx []byte, w string) transactionSuccessResponse {
 	return response
 }
 
-//wraps getUTXOsfromAddress, return a utxo from given position
+// Wraps getUTXOsfromAddress, return a utxo from given position
 func GetUTXO(address string, position uint, watcher string) SingleUTXO {
 	tt := GetUTXOsFromAddress(address, watcher)
 	var single SingleUTXO
@@ -502,6 +502,53 @@ func GetUTXOsFromAddress(address string, w string) util.WatcherUTXOsFromAddress 
 		if processError != nil { // Response from the Watcher does not match a struct
 			log.Fatal("Unknown response from Watcher API")
 			panic("uh oh")
+		}
+		log.Warning("Unmarshalled JSON error response from the Watcher API")
+		log.Error(errorInfo)
+	} else {
+		log.Info(resp.Status)
+	}
+
+	return response
+}
+
+// Get balance for a certain address
+func GetBalance(address string, watcher string) util.WatcherBalanceFromAddress {
+	// Build request
+	var url strings.Builder
+	url.WriteString(watcher)
+	url.WriteString("/account.get_balance")
+	postData := map[string]interface{}{"address": address}
+	js, _ := json.Marshal(postData)
+	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
+	if err != nil {
+		log.Fatal(err)
+	}
+	r.Header.Add("Content-Type", "application/json")
+
+	// Make the request
+	client := &http.Client{}
+	resp, err := client.Do(r)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Unmarshall the response
+	response := util.WatcherBalanceFromAddress{}
+
+	rstring, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	jsonErr := json.Unmarshal([]byte(rstring), &response)
+	if jsonErr != nil {
+		log.Warning("Could not unmarshal successful response from the Watcher")
+		errorInfo := watcherError{}
+		processError := json.Unmarshal([]byte(rstring), &errorInfo)
+		if processError != nil { // Response from the Watcher does not match a struct
+			log.Fatal("Unknown response from Watcher API")
+			panic("nani")
 		}
 		log.Warning("Unmarshalled JSON error response from the Watcher API")
 		log.Error(errorInfo)

@@ -62,6 +62,15 @@ type WatcherUTXOsFromAddress struct {
 	} `json:"data"`
 }
 
+type WatcherBalanceFromAddress struct {
+	Version string `json:"version"`
+	Success bool   `json:"success"`
+	Data    []struct {
+		Currency string `json:"currency"`
+		Amount   int    `json:"amount"`
+	} `json:"data"`
+}
+
 // Sign a transaction with a key
 func SignTransaction(unsignedTx string, privateKey string) []byte {
 	//hash the unsignedTx struct
@@ -140,6 +149,13 @@ func DisplayUTXOS(u WatcherUTXOsFromAddress) {
 		log.Info("Output Index: ", value.Oindex)
 		log.Info("Currency: ", value.Currency)
 		log.Info("UTXO Position: ", value.UtxoPos)
+	}
+}
+
+func DisplayBalance(b WatcherBalanceFromAddress) {
+	for _, v := range b.Data {
+		log.Info("Currency: ", v.Currency)
+		log.Info("Amount: ", v.Amount)
 	}
 }
 
