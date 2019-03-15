@@ -2,57 +2,64 @@
 
 ## What is this?
 
-The Plasma CLI is used for interacting with OMG network from the command line. It allows the user to deposit to the Plasma contract, create transactions, and exit back to the root chain with the Ethereum & MoreVP Plasma details abstracted from the user. Both local RPC node for connecting to Ethereum and Infura are supported.
+The Plasma CLI is used to interact with the OMG network from the command line. Technical details about Ethereum and Plasma are abstracted from the user.
 
-The CLI currently does not support ERC20 tokens
+Plasma CLI enables the user to:
+* deposit ETH to the Plasma contract
+* create transactions
+* exit ETH from the OMG Network back to Ethereum
+
+Connectivity to Ethereum via a local RPC node or Infura is supported.
+
+ERC20 tokens are not currently supported.
 
 ## Installation
 
-`plasma_cli` is available as binaries at https://github.com/omisego/plasma-cli/releases, download one of the assets, depending on your OS.
+`plasma_cli` is available as binaries at https://github.com/omisego/plasma-cli/releases. Download the binary that matches your operating system.
 
 After downloading the binary file (on macOS):
 1. rename the file `$ mv "plasma-cli-v0.0.2-darwin-amd64" plasma_cli`
-2. set permission `$ chmod +x ./plasma_cli`
-3. try running it `$ ./plasma_cli --help`
+2. set execute permissions `$ chmod u+x ./plasma_cli`
+3. run it `$ ./plasma_cli --help`
 
-## Creating Account (Keypair)
+## Create an Account (Keypair)
 
 ```
 plasma_cli create account
 ```
 
-## Making Deposits
+## Deposit ETH into the OMG Network
 
 ```
 plasma_cli deposit --privatekey=<private key> --client=<local rpc server or Infura URL> --contract=<contract address> --amount=<amount in wei> --owner=<public key of the owner>
 ```
 
 
-## Getting UTXOs
+## Retrieve a List of UTXOs
 
 ```
-plasma_cli get utxos --watcher=<watcher URL> --address=<public key of owner>
+plasma_cli get utxos --watcher=<watcher URL> --address=<public_address>
 ```
 
-## Checking Balance
+## Check the Balance of an Account
 
 ```
-plasma_cli get balance --watcher=<watcher URL> --address=<public key of owner>
+plasma_cli get balance --watcher=<watcher URL> --address=<public_address>
 ```
 
-## Creating simple transaction
+## Send ETH in the OMG Network
 
-NOTE: This function will either 
+NOTE: This function will either
 1. Send the entire UTXO to an address, or
 2. Split the UTXO to destination address and send the change to the owner
 
-Support for more complex transactions will come later
+Support for more complex payment transactions will come later.
 
 ```
 plasma_cli transaction --fromutxo=<UTXO position> --fromowner=<from address> --privatekey=<from privatekey> --toowner=<to address> --toamount=<to amount>  --watcher=<watcher url>
 ```
 
-## Exit to Rootchain
+## Exit to Ethereum
 
 ```
 plasma_cli exit --utxo=<utxo ID> --privatekey=<private key> --contract=<contract address> --watcher=<watcher url> --client=<local rpc server or Infura URL>
