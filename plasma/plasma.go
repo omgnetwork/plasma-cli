@@ -210,7 +210,7 @@ type transactionToEncode struct {
 }
 
 type transactionToBuild struct {
-	Sig     Signature
+	Sig     [][]byte
 	Inputs  []input
 	Outputs []output
 }
@@ -383,25 +383,29 @@ func GetUTXO(address string, position uint, watcher string) SingleUTXO {
 func (p *PlasmaTransaction) SendBasicTransaction(w string) transactionSuccessResponse {
 	k := p.createBasicTransaction()
 	encoded := k.encodeTransaction()
-	sig := util.SignTransaction(encoded, p.Privatekey)
+	var keys []string
+	keys = append(keys, p.Privatekey)
+	sig := util.SignTransaction(encoded, keys)
 	//log.Info(hex.EncodeToString(buildSignedTransaction(sig, encoded)))
 	transaction := buildSignedTransaction(sig, encoded)
 
 	return submitTransaction(transaction, w)
 }
 
-func (m *MergeTransaction) MergeBasicTransaction(w string) {
+func (m *MergeTransaction) MergeBasicTransaction(w string) transactionSuccessResponse {
 	k := m.CreateMergeTransaction()
 	encoded := k.encodeTransaction()
-	sig := util.SignTransaction(encoded, m.Privatekey)
+	var keys []string
+	keys = append(keys, m.Privatekey, m.Privatekey)
+	sig := util.SignTransaction(encoded, keys)
 	transaction := buildSignedTransaction(sig, encoded)
 	log.Info("input and output", k)
 	log.Info("hex encoded", hex.EncodeToString(transaction))
-	//return submitTransaction(transaction, w)
+	return submitTransaction(transaction, w)
 }
 
-// Deecode RLP, and rebuild transaction with signature, finally encode the whole thing
-func buildSignedTransaction(signature []byte, unsignedTX string) []byte {
+// Deecode RLP, and rebuild transaction with signatures, finally encode the whole thing
+func buildSignedTransaction(signatures [][]byte, unsignedTX string) []byte {
 	var tx transactionToEncode
 	//RLP decode unsignedTx
 	decoded, err := hex.DecodeString(unsignedTX)
@@ -410,7 +414,11 @@ func buildSignedTransaction(signature []byte, unsignedTX string) []byte {
 	}
 	rlp.DecodeBytes(decoded, &tx)
 	//build Transaction
-	txsig := Signature{Sig: signature}
+	var txsig [][]byte
+	for _, s := range signatures {
+		txsig = append(txsig, s)
+	}
+	//txsig := Signature{Sig: signature}
 	builtTx := transactionToBuild{Inputs: tx.Inputs, Outputs: tx.Outputs, Sig: txsig}
 	//RLP encode built transaction
 	encoded, err := rlp.EncodeToBytes(builtTx)
