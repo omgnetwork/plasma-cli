@@ -15,8 +15,8 @@ package main
 // limitations under the License.
 
 import (
-	"github.com/omisego/plasma-cli/parser"
-	"github.com/omisego/plasma-cli/util"
+	"./parser"
+	"./util"
 	log "github.com/sirupsen/logrus"
 )
 

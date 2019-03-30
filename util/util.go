@@ -71,7 +71,7 @@ type WatcherBalanceFromAddress struct {
 	} `json:"data"`
 }
 
-// Sign a transaction with a key
+// Sign a transaction with private keys
 func SignTransaction(unsignedTx string, privateKey string) []byte {
 	//hash the unsignedTx struct
 	unsignedTxBytes, err := hex.DecodeString(FilterZeroX(unsignedTx))

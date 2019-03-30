@@ -25,13 +25,13 @@ import (
 	"net/http"
 	"strings"
 
+	"../rootchain"
+	"../util"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/omisego/plasma-cli//util"
-	"github.com/omisego/plasma-cli/rootchain"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -137,6 +137,12 @@ type PlasmaTransaction struct {
 	Fromowner  common.Address
 	Toamount   uint
 	Fromamount uint
+	Privatekey string
+}
+
+type MergeTransaction struct {
+	Utxos      []SingleUTXO
+	Fromowner  common.Address
 	Privatekey string
 }
 
@@ -255,6 +261,37 @@ func (p *PlasmaTransaction) createBasicTransaction() createdTx {
 	return transaction
 }
 
+// form N inputs 1 output transaction
+func (m *MergeTransaction) CreateMergeTransaction() createdTx {
+	NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
+	NULL_INPUT := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0}
+	NULL_OUTPUT := outputUTXO{OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS}
+	var v uint
+	for _, su := range m.Utxos {
+		v = v + uint(su.Amount)
+	}
+	outputOne := outputUTXO{OwnerAddress: m.Fromowner, Amount: v, Currency: NULL_ADDRESS}
+
+	var i []inputUTXO
+	var o []outputUTXO
+
+	for _, iu := range m.Utxos {
+		in := inputUTXO{Blknum: uint(iu.Blknum), Txindex: uint(iu.Txindex), Oindex: uint(iu.Oindex)}
+		i = append(i, in)
+	}
+
+	//fill the rest of inputs with null
+	if len(i) < 4 {
+		for ni := 0; ni <= 4-len(i); ni++ {
+			i = append(i, NULL_INPUT)
+		}
+	}
+
+	o = append(o, outputOne, NULL_OUTPUT, NULL_OUTPUT, NULL_OUTPUT)
+	return createdTx{Inputs: i, Outputs: o}
+
+}
+
 // Encode transaction with RLP
 func (c *createdTx) encodeTransaction() string {
 	var t *transactionToEncode
@@ -351,6 +388,16 @@ func (p *PlasmaTransaction) SendBasicTransaction(w string) transactionSuccessRes
 	transaction := buildSignedTransaction(sig, encoded)
 
 	return submitTransaction(transaction, w)
+}
+
+func (m *MergeTransaction) MergeBasicTransaction(w string) {
+	k := m.CreateMergeTransaction()
+	encoded := k.encodeTransaction()
+	sig := util.SignTransaction(encoded, m.Privatekey)
+	transaction := buildSignedTransaction(sig, encoded)
+	log.Info("input and output", k)
+	log.Info("hex encoded", hex.EncodeToString(transaction))
+	//return submitTransaction(transaction, w)
 }
 
 // Deecode RLP, and rebuild transaction with signature, finally encode the whole thing
