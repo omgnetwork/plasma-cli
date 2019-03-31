@@ -108,8 +108,7 @@ func GenerateAccount() (string, string) {
 	}
 	address := crypto.PubkeyToAddress(key.PublicKey).Hex()
 	privateKey := hex.EncodeToString(key.D.Bytes())
-	log.Info("Address is ", address)
-	log.Info("Privatekey is ", privateKey)
+	log.Infof("\n Address: %s \n Privatekey: %s ", address, privateKey)
 	return address, privateKey
 }
 

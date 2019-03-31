@@ -17,9 +17,9 @@ package parser
 import (
 	"os"
 
-	"../plasma"
-	"../util"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/omisego/plasma-cli/plasma"
+	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -40,7 +40,7 @@ var (
 	depositAmount   = deposit.Flag("amount", "Amount to deposit in wei").Required().Uint64()
 	depositCurrency = deposit.Flag("currency", "Currency of the deposit. Example: ETH").Required().String()
 
-	transaction      = kingpin.Command("transaction", "Create a transaction on the OmiseGO Plasma MoreVP network")
+	transaction      = kingpin.Command("send", "Create a transaction on the OmiseGO Plasma MoreVP network")
 	toowner          = transaction.Flag("toowner", "New owner of the UTXO").Required().String()
 	fromowner        = transaction.Flag("fromowner", "from an owner of the UTXO").Required().String()
 	privatekey       = transaction.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
@@ -115,13 +115,7 @@ func ParseArgs() {
 			Fromamount: uint(p.Amount)}
 		c.SendBasicTransaction(watcher)
 	case merge.FullCommand():
-		//plasma_cli merge --fromutxo=10000 --fromutxo=20000 --fromutxo=1212
-		/**
-		TODO:
-		make merge dynamic
-		error handling merge, check for inputs length
-		make sure sendBasicTransaction still works
-		*/
+		//plasma_cli merge --fromutxo=10000 --fromutxo=20000 --watcher="http://foo.path" --privatekey="foo" --fromowner="foo"
 		utxos := *mergeFromUtxos
 		var us []plasma.SingleUTXO
 		for _, u := range utxos {

@@ -25,13 +25,13 @@ import (
 	"net/http"
 	"strings"
 
-	"../rootchain"
-	"../util"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/omisego/plasma-cli/rootchain"
+	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,10 +42,6 @@ type PlasmaDeposit struct {
 	Amount     uint64
 	Owner      string
 	Currency   string
-}
-
-type Signature struct {
-	Sig []byte
 }
 
 type transactionSuccessResponse struct {
@@ -262,7 +258,7 @@ func (p *PlasmaTransaction) createBasicTransaction() createdTx {
 }
 
 // form N inputs 1 output transaction
-func (m *MergeTransaction) CreateMergeTransaction() createdTx {
+func (m *MergeTransaction) createMergeTransaction() createdTx {
 	NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
 	NULL_INPUT := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0}
 	NULL_OUTPUT := outputUTXO{OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS}
@@ -314,7 +310,6 @@ func (c *createdTx) encodeTransaction() string {
 		log.Fatal(err)
 	}
 
-	log.Info("Hex encoded transaction: ", encodedBytes)
 	return hex.EncodeToString(encodedBytes)
 }
 
@@ -362,8 +357,14 @@ func submitTransaction(tx []byte, w string) transactionSuccessResponse {
 		log.Error(errorInfo)
 	} else {
 		log.Info(resp.Status)
+		log.Infof(
+			"\n Response:\n Success: %v \n Blknum: %v \n txindex: %v\n Txhash: %v",
+			response.Success,
+			response.Data.Blknum,
+			response.Data.Txindex,
+			response.Data.Txhash,
+		)
 	}
-	log.Info("tx response", response)
 	return response
 }
 
@@ -397,7 +398,7 @@ func (m *MergeTransaction) MergeBasicTransaction(w string) transactionSuccessRes
 	if len(m.Utxos) > 4 {
 		log.Fatal("Exceeded maximum of 4 UTXOs")
 	}
-	k := m.CreateMergeTransaction()
+	k := m.createMergeTransaction()
 	encoded := k.encodeTransaction()
 	var keys []string
 	for range m.Utxos {
@@ -422,15 +423,12 @@ func buildSignedTransaction(signatures [][]byte, unsignedTX string) []byte {
 	for _, s := range signatures {
 		txsig = append(txsig, s)
 	}
-	//txsig := Signature{Sig: signature}
 	builtTx := transactionToBuild{Inputs: tx.Inputs, Outputs: tx.Outputs, Sig: txsig}
 	//RLP encode built transaction
 	encoded, err := rlp.EncodeToBytes(builtTx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Do we need to log the hex output to the user? Perhaps this could be a
-	// debug instead.
 
 	return encoded
 }
