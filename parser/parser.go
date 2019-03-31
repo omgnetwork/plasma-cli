@@ -116,6 +116,12 @@ func ParseArgs() {
 		c.SendBasicTransaction(watcher)
 	case merge.FullCommand():
 		//plasma_cli merge --fromutxo=10000 --fromutxo=20000 --fromutxo=1212
+		/**
+		TODO:
+		make merge dynamic
+		error handling merge, check for inputs length
+		make sure sendBasicTransaction still works
+		*/
 		utxos := *mergeFromUtxos
 		var us []plasma.SingleUTXO
 		for _, u := range utxos {

@@ -392,15 +392,19 @@ func (p *PlasmaTransaction) SendBasicTransaction(w string) transactionSuccessRes
 	return submitTransaction(transaction, w)
 }
 
+// Compose basic Merge Transaction over 4 UTXOs to 1
 func (m *MergeTransaction) MergeBasicTransaction(w string) transactionSuccessResponse {
+	if len(m.Utxos) > 4 {
+		log.Fatal("Exceeded maximum of 4 UTXOs")
+	}
 	k := m.CreateMergeTransaction()
 	encoded := k.encodeTransaction()
 	var keys []string
-	keys = append(keys, m.Privatekey, m.Privatekey)
+	for range m.Utxos {
+		keys = append(keys, m.Privatekey)
+	}
 	sig := util.SignTransaction(encoded, keys)
 	transaction := buildSignedTransaction(sig, encoded)
-	log.Info("input and output", k)
-	log.Info("hex encoded", hex.EncodeToString(transaction))
 	return submitTransaction(transaction, w)
 }
 
