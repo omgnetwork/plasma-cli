@@ -71,28 +71,33 @@ type WatcherBalanceFromAddress struct {
 	} `json:"data"`
 }
 
-// Sign a transaction with a key
-func SignTransaction(unsignedTx string, privateKey string) []byte {
+// Sign a transaction with private keys
+func SignTransaction(unsignedTx string, privateKeys []string) [][]byte {
 	//hash the unsignedTx struct
 	unsignedTxBytes, err := hex.DecodeString(FilterZeroX(unsignedTx))
 	if err != nil {
 		log.Fatal(err)
 	}
 	hashed := crypto.Keccak256(unsignedTxBytes)
-	priv, err := crypto.HexToECDSA(FilterZeroX(privateKey))
-	if err != nil {
-		log.Fatal(err)
-	}
-	//sign the transaction
-	signature, err := crypto.Sign(hashed, priv)
-	if err != nil {
-		log.Fatal(err)
-	}
-	//adding 27 to last byte, because ethereum
-	copy(signature[64:], []uint8{signature[64] + 27})
 
-	log.Info("transaction signed: ", signature)
-	return signature
+	var sigs [][]byte
+	for _, pk := range privateKeys {
+		priv, err := crypto.HexToECDSA(FilterZeroX(pk))
+		if err != nil {
+			log.Fatal(err)
+		}
+		//sign the transaction
+		signature, err := crypto.Sign(hashed, priv)
+		if err != nil {
+			log.Fatal(err)
+		}
+		//adding 27 to last byte, because ethereum
+		copy(signature[64:], []uint8{signature[64] + 27})
+		sigs = append(sigs, signature)
+	}
+
+	//log.Info("transaction signed: ", signature)
+	return sigs
 }
 
 // Generate Account - Public and Privatekey
@@ -103,8 +108,7 @@ func GenerateAccount() (string, string) {
 	}
 	address := crypto.PubkeyToAddress(key.PublicKey).Hex()
 	privateKey := hex.EncodeToString(key.D.Bytes())
-	log.Info("Address is ", address)
-	log.Info("Privatekey is ", privateKey)
+	log.Infof("\n Address: %s \n Privatekey: %s ", address, privateKey)
 	return address, privateKey
 }
 

@@ -47,16 +47,21 @@ plasma_cli get utxos --watcher=<watcher URL> --address=<public_address>
 plasma_cli get balance --watcher=<watcher URL> --address=<public_address>
 ```
 
-## Send ETH in the OMG Network
+## Sending ETH UTXO
 
-NOTE: This function will either
+This function will either
 1. Send the entire UTXO to an address, or
 2. Split the UTXO to destination address and send the change to the owner
 
-Support for more complex payment transactions will come later.
-
 ```
-plasma_cli transaction --fromutxo=<UTXO position> --fromowner=<from address> --privatekey=<from privatekey> --toowner=<to address> --toamount=<to amount>  --watcher=<watcher url>
+plasma_cli send --fromutxo=<UTXO position> --fromowner=<from address> --privatekey=<from privatekey> --toowner=<to address> --toamount=<to amount>  --watcher=<watcher url>
+```
+
+## Merging ETH UTXOs
+
+This function allows for merging 4 or less UTXOs into 1
+```
+plasma_cli merge --fromutxo=UTXO_1 --fromutxo=UTXO_2 --fromutxo=UTXO_3 --privatekey="private_key" --fromowner="from-owner"
 ```
 
 ## Exit to Ethereum

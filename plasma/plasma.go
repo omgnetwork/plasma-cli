@@ -30,8 +30,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/omisego/plasma-cli//util"
 	"github.com/omisego/plasma-cli/rootchain"
+	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,10 +42,6 @@ type PlasmaDeposit struct {
 	Amount     uint64
 	Owner      string
 	Currency   string
-}
-
-type Signature struct {
-	Sig []byte
 }
 
 type transactionSuccessResponse struct {
@@ -140,6 +136,12 @@ type PlasmaTransaction struct {
 	Privatekey string
 }
 
+type MergeTransaction struct {
+	Utxos      []SingleUTXO
+	Fromowner  common.Address
+	Privatekey string
+}
+
 type watcherStatus struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -204,7 +206,7 @@ type transactionToEncode struct {
 }
 
 type transactionToBuild struct {
-	Sig     Signature
+	Sig     [][]byte
 	Inputs  []input
 	Outputs []output
 }
@@ -255,6 +257,37 @@ func (p *PlasmaTransaction) createBasicTransaction() createdTx {
 	return transaction
 }
 
+// form N inputs 1 output transaction
+func (m *MergeTransaction) createMergeTransaction() createdTx {
+	NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
+	NULL_INPUT := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0}
+	NULL_OUTPUT := outputUTXO{OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS}
+	var v uint
+	for _, su := range m.Utxos {
+		v = v + uint(su.Amount)
+	}
+	outputOne := outputUTXO{OwnerAddress: m.Fromowner, Amount: v, Currency: NULL_ADDRESS}
+
+	var i []inputUTXO
+	var o []outputUTXO
+
+	for _, iu := range m.Utxos {
+		in := inputUTXO{Blknum: uint(iu.Blknum), Txindex: uint(iu.Txindex), Oindex: uint(iu.Oindex)}
+		i = append(i, in)
+	}
+
+	//fill the rest of inputs with null
+	if len(i) < 4 {
+		for ni := 0; ni <= 4-len(i); ni++ {
+			i = append(i, NULL_INPUT)
+		}
+	}
+
+	o = append(o, outputOne, NULL_OUTPUT, NULL_OUTPUT, NULL_OUTPUT)
+	return createdTx{Inputs: i, Outputs: o}
+
+}
+
 // Encode transaction with RLP
 func (c *createdTx) encodeTransaction() string {
 	var t *transactionToEncode
@@ -277,7 +310,6 @@ func (c *createdTx) encodeTransaction() string {
 		log.Fatal(err)
 	}
 
-	log.Info("Hex encoded transaction: ", encodedBytes)
 	return hex.EncodeToString(encodedBytes)
 }
 
@@ -325,8 +357,14 @@ func submitTransaction(tx []byte, w string) transactionSuccessResponse {
 		log.Error(errorInfo)
 	} else {
 		log.Info(resp.Status)
+		log.Infof(
+			"\n Response:\n Success: %v \n Blknum: %v \n txindex: %v\n Txhash: %v",
+			response.Success,
+			response.Data.Blknum,
+			response.Data.Txindex,
+			response.Data.Txhash,
+		)
 	}
-	log.Info("tx response", response)
 	return response
 }
 
@@ -346,15 +384,33 @@ func GetUTXO(address string, position uint, watcher string) SingleUTXO {
 func (p *PlasmaTransaction) SendBasicTransaction(w string) transactionSuccessResponse {
 	k := p.createBasicTransaction()
 	encoded := k.encodeTransaction()
-	sig := util.SignTransaction(encoded, p.Privatekey)
+	var keys []string
+	keys = append(keys, p.Privatekey)
+	sig := util.SignTransaction(encoded, keys)
 	//log.Info(hex.EncodeToString(buildSignedTransaction(sig, encoded)))
 	transaction := buildSignedTransaction(sig, encoded)
 
 	return submitTransaction(transaction, w)
 }
 
-// Deecode RLP, and rebuild transaction with signature, finally encode the whole thing
-func buildSignedTransaction(signature []byte, unsignedTX string) []byte {
+// Compose basic Merge Transaction over 4 UTXOs to 1
+func (m *MergeTransaction) MergeBasicTransaction(w string) transactionSuccessResponse {
+	if len(m.Utxos) > 4 {
+		log.Fatal("Exceeded maximum of 4 UTXOs")
+	}
+	k := m.createMergeTransaction()
+	encoded := k.encodeTransaction()
+	var keys []string
+	for range m.Utxos {
+		keys = append(keys, m.Privatekey)
+	}
+	sig := util.SignTransaction(encoded, keys)
+	transaction := buildSignedTransaction(sig, encoded)
+	return submitTransaction(transaction, w)
+}
+
+// Deecode RLP, and rebuild transaction with signatures, finally encode the whole thing
+func buildSignedTransaction(signatures [][]byte, unsignedTX string) []byte {
 	var tx transactionToEncode
 	//RLP decode unsignedTx
 	decoded, err := hex.DecodeString(unsignedTX)
@@ -363,15 +419,16 @@ func buildSignedTransaction(signature []byte, unsignedTX string) []byte {
 	}
 	rlp.DecodeBytes(decoded, &tx)
 	//build Transaction
-	txsig := Signature{Sig: signature}
+	var txsig [][]byte
+	for _, s := range signatures {
+		txsig = append(txsig, s)
+	}
 	builtTx := transactionToBuild{Inputs: tx.Inputs, Outputs: tx.Outputs, Sig: txsig}
 	//RLP encode built transaction
 	encoded, err := rlp.EncodeToBytes(builtTx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Do we need to log the hex output to the user? Perhaps this could be a
-	// debug instead.
 
 	return encoded
 }
