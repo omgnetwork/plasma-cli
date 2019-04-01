@@ -40,13 +40,13 @@ var (
 	depositAmount   = deposit.Flag("amount", "Amount to deposit in wei").Required().Uint64()
 	depositCurrency = deposit.Flag("currency", "Currency of the deposit. Example: ETH").Required().String()
 
-	transaction      = kingpin.Command("send", "Create a transaction on the OmiseGO Plasma MoreVP network")
-	toowner          = transaction.Flag("toowner", "New owner of the UTXO").Required().String()
-	fromowner        = transaction.Flag("fromowner", "from an owner of the UTXO").Required().String()
-	privatekey       = transaction.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
-	toamount         = transaction.Flag("toamount", "Amount to transact").Required().Uint()
-	fromutxo         = transaction.Flag("fromutxo", "utxo position to send from").Required().Uint()
-	watcherSubmitURL = transaction.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
+	send             = kingpin.Command("send", "Create a transaction on the OmiseGO Plasma MoreVP network")
+	toowner          = send.Flag("toowner", "New owner of the UTXO").Required().String()
+	fromowner        = send.Flag("fromowner", "from an owner of the UTXO").Required().String()
+	privatekey       = send.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
+	toamount         = send.Flag("toamount", "Amount to transact").Required().Uint()
+	fromutxo         = send.Flag("fromutxo", "utxo position to send from").Required().Uint()
+	watcherSubmitURL = send.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 
 	exit           = kingpin.Command("exit", "Standard exit a UTXO back to the root chain.")
 	watcherExitURL = exit.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
@@ -98,7 +98,7 @@ func ParseArgs() {
 		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377 --currency=ETH
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
 		d.DepositToPlasmaContract()
-	case transaction.FullCommand():
+	case send.FullCommand():
 		//plasma_cli transaction --fromutxo --fromowner --privatekey --toowner --toamount --watcher
 		p := plasma.GetUTXO(*fromowner, *fromutxo, *watcherSubmitURL)
 		watcher := *watcherSubmitURL
