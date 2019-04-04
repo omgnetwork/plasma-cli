@@ -134,6 +134,7 @@ type PlasmaTransaction struct {
 	Toamount   uint
 	Fromamount uint
 	Privatekey string
+	Outputs    int
 }
 
 type MergeTransaction struct {
@@ -252,6 +253,57 @@ func (p *PlasmaTransaction) createBasicTransaction() createdTx {
 	var o []outputUTXO
 	i = append(i, singleInput, NULL_INPUT, NULL_INPUT, NULL_INPUT)
 	o = append(o, outputOne, outputTwo, NULL_OUTPUT, NULL_OUTPUT)
+	transaction := createdTx{Inputs: i, Outputs: o}
+
+	return transaction
+}
+
+// form 1 input with N output transactions
+func (p *PlasmaTransaction) createSplitTransaction() createdTx {
+	totalAmount := p.Toamount * uint(p.Outputs)
+	change := int(p.Fromamount) - int(totalAmount)
+	if p.Outputs > 4 {
+		log.Fatal("Exceeded maximum of 4 Outputs")
+	}
+
+	if change < 0 {
+		log.Fatal("total output amount exceeded input amount")
+	}
+
+	if p.Outputs == 4 && change > 0 {
+		log.Fatal("transaction has change, but outputs already reached maximum of 4")
+	}
+
+	NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
+	NULL_INPUT := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0}
+	NULL_OUTPUT := outputUTXO{OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS}
+	//from a single input
+	singleInput := inputUTXO{Blknum: p.Blknum, Txindex: p.Txindex, Oindex: p.Oindex}
+
+	var i []inputUTXO
+	var o []outputUTXO
+	//no changes to be added
+	if p.Fromamount == totalAmount {
+		for no := 0; no < p.Outputs; no++ {
+			o = append(o, outputUTXO{OwnerAddress: p.Toowner, Amount: p.Toamount, Currency: p.Cur12})
+		}
+	} else {
+		for no := 0; no < p.Outputs; no++ {
+			o = append(o, outputUTXO{OwnerAddress: p.Toowner, Amount: p.Toamount, Currency: p.Cur12})
+		}
+		//append change
+		o = append(o, outputUTXO{OwnerAddress: p.Fromowner, Amount: uint(change), Currency: p.Cur12})
+	}
+
+	//fill the rest of outputs with null
+	if len(o) < 4 {
+		for ni := 0; ni < 4-len(o); ni++ {
+			o = append(o, NULL_OUTPUT)
+		}
+	}
+	log.Info(o)
+
+	i = append(i, singleInput, NULL_INPUT, NULL_INPUT, NULL_INPUT)
 	transaction := createdTx{Inputs: i, Outputs: o}
 
 	return transaction
@@ -393,7 +445,20 @@ func (p *PlasmaTransaction) SendBasicTransaction(w string) transactionSuccessRes
 	return submitTransaction(transaction, w)
 }
 
-// Compose basic Merge Transaction over 4 UTXOs to 1
+// send split transaction to N outputs
+func (p *PlasmaTransaction) SendSplitTransaction(w string) transactionSuccessResponse {
+	k := p.createSplitTransaction()
+	encoded := k.encodeTransaction()
+	var keys []string
+	keys = append(keys, p.Privatekey)
+	sig := util.SignTransaction(encoded, keys)
+	//log.Info(hex.EncodeToString(buildSignedTransaction(sig, encoded)))
+	transaction := buildSignedTransaction(sig, encoded)
+
+	return submitTransaction(transaction, w)
+}
+
+// form 1 input n output transaction
 func (m *MergeTransaction) MergeBasicTransaction(w string) transactionSuccessResponse {
 	if len(m.Utxos) > 4 {
 		log.Fatal("Exceeded maximum of 4 UTXOs")

@@ -48,6 +48,15 @@ var (
 	fromutxo         = send.Flag("fromutxo", "utxo position to send from").Required().Uint()
 	watcherSubmitURL = send.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 
+	split             = kingpin.Command("split", "Create a transaction on the OmiseGO Plasma MoreVP network")
+	stoowner          = split.Flag("toowner", "New owner of the UTXO").Required().String()
+	sfromowner        = split.Flag("fromowner", "from an owner of the UTXO").Required().String()
+	sprivatekey       = split.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
+	stoamount         = split.Flag("toamount", "Amount to transact").Required().Uint()
+	sfromutxo         = split.Flag("fromutxo", "utxo position to send from").Required().Uint()
+	swatcherSubmitURL = split.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
+	outputs           = split.Flag("outputs", "total amount of output to split utxo into (4 max)").Required().Uint64()
+
 	exit           = kingpin.Command("exit", "Standard exit a UTXO back to the root chain.")
 	watcherExitURL = exit.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 	contractExit   = exit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
@@ -99,7 +108,7 @@ func ParseArgs() {
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
 		d.DepositToPlasmaContract()
 	case send.FullCommand():
-		//plasma_cli transaction --fromutxo --fromowner --privatekey --toowner --toamount --watcher
+		//plasma_cli send --fromutxo --fromowner --privatekey --toowner --toamount --watcher
 		p := plasma.GetUTXO(*fromowner, *fromutxo, *watcherSubmitURL)
 		watcher := *watcherSubmitURL
 
@@ -114,6 +123,23 @@ func ParseArgs() {
 			Toamount:   *toamount,
 			Fromamount: uint(p.Amount)}
 		c.SendBasicTransaction(watcher)
+	case split.FullCommand():
+		//plasma_cli split --fromutxo --fromowner --privatekey --toowner --toamount --watcher --outputs
+		p := plasma.GetUTXO(*sfromowner, *sfromutxo, *swatcherSubmitURL)
+		watcher := *swatcherSubmitURL
+
+		c := plasma.PlasmaTransaction{
+			Blknum:     uint(p.Blknum),
+			Txindex:    uint(p.Txindex),
+			Oindex:     uint(p.Oindex),
+			Cur12:      common.HexToAddress(p.Currency),
+			Toowner:    common.HexToAddress(*stoowner),
+			Fromowner:  common.HexToAddress(*sfromowner),
+			Privatekey: *sprivatekey,
+			Toamount:   *stoamount,
+			Fromamount: uint(p.Amount),
+			Outputs:    int(*outputs)}
+		c.SendSplitTransaction(watcher)
 	case merge.FullCommand():
 		//plasma_cli merge --fromutxo=10000 --fromutxo=20000 --watcher="http://foo.path" --privatekey="foo" --fromowner="foo"
 		utxos := *mergeFromUtxos
