@@ -222,17 +222,14 @@ type SingleUTXO struct {
 	Amount   int    `json:"amount"`
 }
 
-// Create a basic transaction with 1 input splitted into 2 outputs
-// if from == to amount, create single output
+// Create a basic transaction with 1 input and 1 output (2 if contains change)
 func (p *PlasmaTransaction) createBasicTransaction() createdTx {
-	//creates 1 input, 2 outputs tx
 	NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
 	NULL_INPUT := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0}
 	NULL_OUTPUT := outputUTXO{OwnerAddress: NULL_ADDRESS, Amount: 0, Currency: NULL_ADDRESS}
-	//1 single input
+
 	singleInput := inputUTXO{Blknum: p.Blknum, Txindex: p.Txindex, Oindex: p.Oindex}
-	//output one is value you are sending
-	//output two is the change (NULL OUTPUT if fromamount == to amount)
+
 	var outputOne outputUTXO
 	var outputTwo outputUTXO
 	if p.Fromamount == p.Toamount {
@@ -258,7 +255,7 @@ func (p *PlasmaTransaction) createBasicTransaction() createdTx {
 	return transaction
 }
 
-// form 1 input with N output transactions
+// Create a split transaction with 1 input and N output
 func (p *PlasmaTransaction) createSplitTransaction() createdTx {
 	totalAmount := p.Toamount * uint(p.Outputs)
 	change := int(p.Fromamount) - int(totalAmount)
@@ -301,7 +298,6 @@ func (p *PlasmaTransaction) createSplitTransaction() createdTx {
 			o = append(o, NULL_OUTPUT)
 		}
 	}
-	log.Info(o)
 
 	i = append(i, singleInput, NULL_INPUT, NULL_INPUT, NULL_INPUT)
 	transaction := createdTx{Inputs: i, Outputs: o}
@@ -309,7 +305,7 @@ func (p *PlasmaTransaction) createSplitTransaction() createdTx {
 	return transaction
 }
 
-// form N inputs 1 output transaction
+// Create a merge transaction with 1 input and N output
 func (m *MergeTransaction) createMergeTransaction() createdTx {
 	NULL_ADDRESS := common.HexToAddress("0000000000000000000000000000000000000000")
 	NULL_INPUT := inputUTXO{Blknum: 0, Txindex: 0, Oindex: 0}

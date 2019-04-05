@@ -1,12 +1,10 @@
 # OmiseGO Plasma CLI
 
-## What is this?
-
 The Plasma CLI is used to interact with the OMG network from the command line. Technical details about Ethereum and Plasma are abstracted from the user.
 
 Plasma CLI enables the user to:
 * deposit ETH to the Plasma contract
-* create transactions
+* create send, split and merge transactions
 * exit ETH from the OMG Network back to Ethereum
 
 Connectivity to Ethereum via a local RPC node or Infura is supported.
@@ -31,41 +29,46 @@ plasma_cli create account
 ## Deposit ETH into the OMG Network
 
 ```
-plasma_cli deposit --privatekey=<private key> --client=<local rpc server or Infura URL> --contract=<contract address> --amount=<amount in wei> --owner=<public key of the owner>
+plasma_cli deposit --privatekey="private_key" --client="local_rpc_server_or_Infura_URL" --contract="contract_address" --amount=amount_in_wei --owner="owner_address"
 ```
 
 
 ## Retrieve a List of UTXOs
 
 ```
-plasma_cli get utxos --watcher=<watcher URL> --address=<public_address>
+plasma_cli get utxos --watcher="watcher_URL" --address="public_address"
 ```
 
 ## Check the Balance of an Account
 
 ```
-plasma_cli get balance --watcher=<watcher URL> --address=<public_address>
+plasma_cli get balance --watcher="watcher_URL" --address="public_address"
 ```
-
 ## Sending ETH UTXO
 
-This function will either
-1. Send the entire UTXO to an address, or
-2. Split the UTXO to destination address and send the change to the owner
+Send an entire UTXO to an address, sends change back to sender if available
 
 ```
-plasma_cli send --fromutxo=<UTXO position> --fromowner=<from address> --privatekey=<from privatekey> --toowner=<to address> --toamount=<to amount>  --watcher=<watcher url>
+plasma_cli send --fromutxo=UTXO_position --fromowner="from_address" --privatekey="from_privatekey" --toowner="to_address" --toamount=to_amount  --watcher="watcher_url"
+```
+
+## Split ETH UTXO
+
+Split an entire UTXO input into N outputs to an address, sends change back to sender if available
+
+```
+plasma_cli split --fromutxo=UTXO_position --fromowner="from_address" --privatekey="from_privatekey" --toowner="to_address" --toamount=to_amount  --outputs=number_of_outputs --watcher="watcher_url"
 ```
 
 ## Merging ETH UTXOs
 
-This function allows for merging 4 or less UTXOs into 1
+Merge 4 or less UTXOs input into 1 output to owner
 ```
-plasma_cli merge --fromutxo=UTXO_1 --fromutxo=UTXO_2 --fromutxo=UTXO_3 --privatekey="private_key" --fromowner="from-owner"
+plasma_cli merge --fromutxo=UTXO_1 --fromutxo=UTXO_2 --fromutxo=UTXO_3 --privatekey="private_key" --fromowner="from_owner" --watcher="warcher_url"
 ```
 
 ## Exit to Ethereum
 
 ```
-plasma_cli exit --utxo=<utxo ID> --privatekey=<private key> --contract=<contract address> --watcher=<watcher url> --client=<local rpc server or Infura URL>
+plasma_cli exit --utxo=UTXO_position --privatekey="private_key" --contract="contract_address" --watcher="watcher_url" --client="local_rpc_server_or_Infura_URL"
 ```

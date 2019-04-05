@@ -110,7 +110,6 @@ func ParseArgs() {
 	case send.FullCommand():
 		//plasma_cli send --fromutxo --fromowner --privatekey --toowner --toamount --watcher
 		p := plasma.GetUTXO(*fromowner, *fromutxo, *watcherSubmitURL)
-		watcher := *watcherSubmitURL
 
 		c := plasma.PlasmaTransaction{
 			Blknum:     uint(p.Blknum),
@@ -122,11 +121,10 @@ func ParseArgs() {
 			Privatekey: *privatekey,
 			Toamount:   *toamount,
 			Fromamount: uint(p.Amount)}
-		c.SendBasicTransaction(watcher)
+		c.SendBasicTransaction(*watcherSubmitURL)
 	case split.FullCommand():
 		//plasma_cli split --fromutxo --fromowner --privatekey --toowner --toamount --watcher --outputs
 		p := plasma.GetUTXO(*sfromowner, *sfromutxo, *swatcherSubmitURL)
-		watcher := *swatcherSubmitURL
 
 		c := plasma.PlasmaTransaction{
 			Blknum:     uint(p.Blknum),
@@ -139,7 +137,7 @@ func ParseArgs() {
 			Toamount:   *stoamount,
 			Fromamount: uint(p.Amount),
 			Outputs:    int(*outputs)}
-		c.SendSplitTransaction(watcher)
+		c.SendSplitTransaction(*swatcherSubmitURL)
 	case merge.FullCommand():
 		//plasma_cli merge --fromutxo=10000 --fromutxo=20000 --watcher="http://foo.path" --privatekey="foo" --fromowner="foo"
 		utxos := *mergeFromUtxos
