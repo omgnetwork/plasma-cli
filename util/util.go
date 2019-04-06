@@ -112,6 +112,16 @@ func GenerateAccount() (string, string) {
 	return address, privateKey
 }
 
+// Derive Address from Private Key
+func DeriveAddress(p string) string {
+	key, err := crypto.HexToECDSA(FilterZeroX(p))
+	if err != nil {
+		log.Fatal(err)
+	}
+	addr := crypto.PubkeyToAddress(key.PublicKey).Hex()
+	return addr
+}
+
 // Make strings suitable for hex encoding
 func RemoveLeadingZeroX(item string) string {
 	cleanedString := strings.Replace(item, "0x", "", -1)

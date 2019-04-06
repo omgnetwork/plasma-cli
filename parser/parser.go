@@ -42,11 +42,18 @@ var (
 
 	send             = kingpin.Command("send", "Create a transaction on the OmiseGO Plasma MoreVP network")
 	toowner          = send.Flag("toowner", "New owner of the UTXO").Required().String()
-	fromowner        = send.Flag("fromowner", "from an owner of the UTXO").Required().String()
 	privatekey       = send.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
 	toamount         = send.Flag("toamount", "Amount to transact").Required().Uint()
 	fromutxo         = send.Flag("fromutxo", "utxo position to send from").Required().Uint()
 	watcherSubmitURL = send.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
+
+	split             = kingpin.Command("split", "Create a transaction on the OmiseGO Plasma MoreVP network")
+	stoowner          = split.Flag("toowner", "New owner of the UTXO").Required().String()
+	sprivatekey       = split.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
+	stoamount         = split.Flag("toamount", "Amount to transact").Required().Uint()
+	sfromutxo         = split.Flag("fromutxo", "utxo position to send from").Required().Uint()
+	swatcherSubmitURL = split.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
+	outputs           = split.Flag("outputs", "total amount of output to split utxo into (4 max)").Required().Uint64()
 
 	exit           = kingpin.Command("exit", "Standard exit a UTXO back to the root chain.")
 	watcherExitURL = exit.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
@@ -57,7 +64,6 @@ var (
 
 	merge           = kingpin.Command("merge", "Standard exit a UTXO back to the root chain.")
 	mergeFromUtxos  = merge.Flag("fromutxo", "comma seperated utxo numbers you want to merge").Required().Uint64List()
-	mergeFromOwner  = merge.Flag("fromowner", "from an address ").Required().String()
 	mergeWatcherURL = merge.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 	mergePrivateKey = merge.Flag("privatekey", "Private key of the UTXO owner").Required().String()
 
@@ -99,9 +105,9 @@ func ParseArgs() {
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
 		d.DepositToPlasmaContract()
 	case send.FullCommand():
-		//plasma_cli transaction --fromutxo --fromowner --privatekey --toowner --toamount --watcher
-		p := plasma.GetUTXO(*fromowner, *fromutxo, *watcherSubmitURL)
-		watcher := *watcherSubmitURL
+		//plasma_cli send --fromutxo --privatekey --toowner --toamount --watcher
+		k := util.DeriveAddress(*privatekey)
+		p := plasma.GetUTXO(k, *fromutxo, *watcherSubmitURL)
 
 		c := plasma.PlasmaTransaction{
 			Blknum:     uint(p.Blknum),
@@ -109,21 +115,40 @@ func ParseArgs() {
 			Oindex:     uint(p.Oindex),
 			Cur12:      common.HexToAddress(p.Currency),
 			Toowner:    common.HexToAddress(*toowner),
-			Fromowner:  common.HexToAddress(*fromowner),
+			Fromowner:  common.HexToAddress(k),
 			Privatekey: *privatekey,
 			Toamount:   *toamount,
 			Fromamount: uint(p.Amount)}
-		c.SendBasicTransaction(watcher)
+		c.SendBasicTransaction(*watcherSubmitURL)
+	case split.FullCommand():
+		//plasma_cli split --fromutxo --privatekey --toowner --toamount --watcher --outputs
+		k := util.DeriveAddress(*sprivatekey)
+		p := plasma.GetUTXO(k, *sfromutxo, *swatcherSubmitURL)
+		c := plasma.PlasmaTransaction{
+			Blknum:     uint(p.Blknum),
+			Txindex:    uint(p.Txindex),
+			Oindex:     uint(p.Oindex),
+			Cur12:      common.HexToAddress(p.Currency),
+			Toowner:    common.HexToAddress(*stoowner),
+			Fromowner:  common.HexToAddress(k),
+			Privatekey: *sprivatekey,
+			Toamount:   *stoamount,
+			Fromamount: uint(p.Amount),
+			Outputs:    int(*outputs)}
+		c.SendSplitTransaction(*swatcherSubmitURL)
 	case merge.FullCommand():
-		//plasma_cli merge --fromutxo=10000 --fromutxo=20000 --watcher="http://foo.path" --privatekey="foo" --fromowner="foo"
+		//plasma_cli merge --fromutxo=10000 --fromutxo=20000 --watcher="http://foo.path" --privatekey="foo"
 		utxos := *mergeFromUtxos
 		var us []plasma.SingleUTXO
+		k := util.DeriveAddress(*mergePrivateKey)
+		log.Info(k)
 		for _, u := range utxos {
-			us = append(us, plasma.GetUTXO(*mergeFromOwner, uint(u), *mergeWatcherURL))
+			us = append(us, plasma.GetUTXO(k, uint(u), *mergeWatcherURL))
 		}
+
 		m := plasma.MergeTransaction{
 			Utxos:      us,
-			Fromowner:  common.HexToAddress(*mergeFromOwner),
+			Fromowner:  common.HexToAddress(k),
 			Privatekey: *mergePrivateKey,
 		}
 
