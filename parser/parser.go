@@ -180,9 +180,5 @@ func ParseArgs() {
 			os.Exit(0)
 		}
 		log.Info("UTXO Position: ", exitData.Data.UtxoPos, " Proof: ", exitData.Data.Proof)
-//	case challengeExit.FullCommand():
-//		//plasma_cli challenge --
-//		log.Info("Challenging exit")
-//		c := plasma.StandardExit{
 	}
 }
