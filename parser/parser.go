@@ -33,7 +33,6 @@ var (
 	status           = get.Command("status", "Get status from the Watcher")
 
 	getExit = get.Command("exit", "Get UTXO exit information")
-	//getExitWatcherURL = getExit.Flag("watcher", "FQDN of the Watcher in the format https://watcher.ari.omg.network").Required().String()
 	getExitUTXOPosition = getExit.Flag("utxo", "Get UTXO exit information").Required().Int()
 
 	deposit         = kingpin.Command("deposit", "Deposit ETH or ERC20 into the Plamsa MoreVP smart contract.")
