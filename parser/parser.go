@@ -27,10 +27,13 @@ import (
 var (
 	get              = kingpin.Command("get", "Get a resource.").Default()
 	getUTXO          = get.Command("utxos", "Retrieve UTXO data from the Watcher service")
-	watcherURL       = get.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
+	watcherURL       = get.Flag("watcher", "FQDN of the Watcher in the format https://watcher.path.net").Required().String()
 	ownerUTXOAddress = get.Flag("address", "Owner address to search UTXOs").String()
 	getBalance       = get.Command("balance", "Retrieve balance of an address from the Watcher service")
 	status           = get.Command("status", "Get status from the Watcher")
+
+	getExit = get.Command("exit", "Get UTXO exit information")
+	getExitUTXOPosition = getExit.Flag("utxo", "Get UTXO exit information").Required().Int()
 
 	deposit         = kingpin.Command("deposit", "Deposit ETH or ERC20 into the Plamsa MoreVP smart contract.")
 	privateKey      = deposit.Flag("privatekey", "Private key of the account used to send funds into Plasma MoreVP").Required().String()
@@ -167,5 +170,14 @@ func ParseArgs() {
 		//plasma_cli create account
 		log.Info("Generating Keypair")
 		util.GenerateAccount()
+	case getExit.FullCommand():
+		//plasma_cli get exit --watcher=https://watcher.ari.omg.network --utxo=1000000000000
+		log.Info("Getting UTXO exit data")
+		exitData, err := plasma.GetUTXOExitData(*watcherURL, *getExitUTXOPosition)
+		if err != nil {
+			log.Warn(err)
+			os.Exit(0)
+		}
+		log.Info("UTXO Position: ", exitData.Data.UtxoPos, " Proof: ", exitData.Data.Proof)
 	}
 }

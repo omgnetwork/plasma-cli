@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -220,6 +221,29 @@ type SingleUTXO struct {
 	Currency string `json:"currency"`
 	Blknum   int    `json:"blknum"`
 	Amount   int    `json:"amount"`
+}
+
+type exitDataUTXO struct {
+	Version string `json:"version"`
+	Success bool   `json:"success"`
+	Data    struct {
+		UtxoPos int64  `json:"utxo_pos"`
+		Txbytes string `json:"txbytes"`
+		Proof   string `json:"proof"`
+	} `json:"data"`
+}
+
+type getUTXOError struct {
+	Version string `json:"version"`
+	Success bool   `json:"success"`
+	Data    struct {
+		Object      string `json:"object"`
+		Code        string `json:"code"`
+		Description string `json:"description"`
+		Messages    struct {
+			ErrorKey string `json:"error_key"`
+		} `json:"messages"`
+	} `json:"data"`
 }
 
 // Create a basic transaction with 1 input and 1 output (2 if contains change)
@@ -497,7 +521,10 @@ func buildSignedTransaction(signatures [][]byte, unsignedTX string) []byte {
 // Start a standard exit from user provided UTXO & private key
 func (s *StandardExit) StartStandardExit(watcher string) {
 	log.Info("Getting data needed to exit the UTXO from the Watcher")
-	exit := getUTXOExitData(watcher, s.UtxoPosition)
+	exit, err := GetUTXOExitData(watcher, s.UtxoPosition)
+	if err != nil{
+		log.Fatal(err)
+	}
 	exit.StartStandardExit(s.Client, s.Contract, s.PrivateKey)
 }
 
@@ -537,7 +564,7 @@ func GetWatcherStatus(w string) {
 }
 
 //Retrieve the UTXO exit data from the UTXO position
-func getUTXOExitData(watcher string, utxoPosition int) StandardExitUTXOData {
+func GetUTXOExitData(watcher string, utxoPosition int) (StandardExitUTXOData, error) {
 	// Build request
 	var url strings.Builder
 	url.WriteString(watcher)
@@ -567,20 +594,12 @@ func getUTXOExitData(watcher string, utxoPosition int) StandardExitUTXOData {
 	}
 	jsonErr := json.Unmarshal([]byte(rstring), &response)
 	if jsonErr != nil {
-		log.Warning("Could not unmarshal successful response from the Watcher")
-		errorInfo := standardExitUTXOError{}
-		processError := json.Unmarshal([]byte(rstring), &errorInfo)
-		if processError != nil { // Response from the Watcher does not match a struct
-			log.Fatal("Unknown response from Watcher API")
-			panic("uh oh")
-		}
-		log.Warning("Unmarshalled JSON error response from the Watcher API")
-		log.Error(errorInfo)
+		return response, errors.New("No exit data found for UTXO provided")
 	} else {
 		log.Info(resp.Status)
 	}
 
-	return response
+	return response, nil
 }
 
 // Retrieve the UTXOs associated with an address from the Watcher
