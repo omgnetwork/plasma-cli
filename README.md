@@ -15,8 +15,8 @@ ERC20 tokens are not currently supported.
 
 `plasma_cli` is available as binaries at https://github.com/omisego/plasma-cli/releases. Download the binary that matches your operating system.
 
-After downloading the binary file (on macOS):
-1. rename the file `$ mv "plasma-cli-v0.0.2-darwin-amd64" plasma_cli`
+After downloading the latest binary file (on macOS):
+1. rename the file `$ mv "name_of_your_binary_file" plasma_cli`
 2. set execute permissions `$ chmod u+x ./plasma_cli`
 3. run it `$ ./plasma_cli --help`
 
