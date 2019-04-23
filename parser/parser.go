@@ -65,7 +65,7 @@ var (
 	exitPrivateKey = exit.Flag("privatekey", "Private key of the UTXO owner").Required().String()
 	clientExit     = exit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 
-	merge           = kingpin.Command("merge", "Standard exit a UTXO back to the root chain.")
+	merge           = kingpin.Command("merge", "Merge 4 or less UTXOs input into 1 output to owner.")
 	mergeFromUtxos  = merge.Flag("fromutxo", "comma seperated utxo numbers you want to merge").Required().Uint64List()
 	mergeWatcherURL = merge.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 	mergePrivateKey = merge.Flag("privatekey", "Private key of the UTXO owner").Required().String()
