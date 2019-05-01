@@ -50,7 +50,7 @@ var (
 	fromutxo         = send.Flag("fromutxo", "utxo position to send from").Required().Uint()
 	watcherSubmitURL = send.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 
-	split             = kingpin.Command("split", "Create a transaction on the OmiseGO Plasma MoreVP network")
+	split             = kingpin.Command("split", "Split an entire UTXO input into N outputs to an address")
 	stoowner          = split.Flag("toowner", "New owner of the UTXO").Required().String()
 	sprivatekey       = split.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
 	stoamount         = split.Flag("toamount", "Amount to transact").Required().Uint()
