@@ -148,12 +148,20 @@ type watcherStatus struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
 	Data    struct {
-		LastValidatedChildBlockNumber int           `json:"last_validated_child_block_number"`
-		LastMinedChildBlockTimestamp  int           `json:"last_mined_child_block_timestamp"`
-		LastMinedChildBlockNumber     int           `json:"last_mined_child_block_number"`
-		EthSyncing                    bool          `json:"eth_syncing"`
-		ByzantineEvents               []interface{} `json:"byzantine_events"`
+		LastValidatedChildBlockNumber int  `json:"last_validated_child_block_number"`
+		LastMinedChildBlockTimestamp  int  `json:"last_mined_child_block_timestamp"`
+		LastMinedChildBlockNumber     int  `json:"last_mined_child_block_number"`
+		EthSyncing                    bool `json:"eth_syncing"`
+		ByzantineEvents               []struct {
+			Event   string   `json:"event"`
+			Details struct{} `json:"details"`
+		} `json:"byzantine_events"`
 	} `json:"data"`
+}
+
+type ByzantineEvents struct {
+	piggyBack    int
+	nonCanonical int
 }
 
 type watcherError struct {
@@ -522,7 +530,7 @@ func buildSignedTransaction(signatures [][]byte, unsignedTX string) []byte {
 func (s *StandardExit) StartStandardExit(watcher string) {
 	log.Info("Getting data needed to exit the UTXO from the Watcher")
 	exit, err := GetUTXOExitData(watcher, s.UtxoPosition)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 	exit.StartStandardExit(s.Client, s.Contract, s.PrivateKey)
@@ -559,8 +567,25 @@ func GetWatcherStatus(w string) {
 	if jsonErr != nil {
 		log.Error(jsonErr)
 	}
+	b := DisplayByzantineEvents(response)
+	log.Infof("Byzantine events: Piggyback available: %v non-canonical ife: %v", b.piggyBack, b.nonCanonical)
 	log.Info("Last validated Childchain block number: ", response.Data.LastValidatedChildBlockNumber)
 	log.Info("Last mined Childchain block number: ", response.Data.LastMinedChildBlockNumber)
+}
+
+func DisplayByzantineEvents(b watcherStatus) ByzantineEvents {
+	var n int
+	var p int
+
+	for _, v := range b.Data.ByzantineEvents {
+		switch v.Event {
+		case "non_canonical_ife":
+			n++
+		case "piggyback_available":
+			p++
+		}
+	}
+	return ByzantineEvents{nonCanonical: n, piggyBack: p}
 }
 
 //Retrieve the UTXO exit data from the UTXO position
