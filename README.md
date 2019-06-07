@@ -11,6 +11,10 @@ Connectivity to Ethereum via a local RPC node or Infura is supported.
 
 ERC20 tokens are not currently supported.
 
+## Compatibility
+
+This tool is compatible with version 0.1 of the OMG Network
+
 ## Installation
 
 `plasma_cli` is available as binaries at https://github.com/omisego/plasma-cli/releases. Download the binary that matches your operating system.
