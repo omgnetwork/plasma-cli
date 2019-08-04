@@ -174,6 +174,18 @@ type watcherError struct {
 	} `json:"data"`
 }
 
+type inputDeposit struct {
+	Txindex uint `json:"txindex"`
+	Oindex  uint `json:"oindex"`
+	Blknum  uint `json:"blknum"`
+}
+
+type createdTx struct {
+	Inputs   []inputUTXO  `json:"inputs"`
+	Outputs  []outputUTXO `json:"outputs"`
+	Metadata string       `json: metadata`
+}
+
 type inputUTXO struct {
 	Txindex uint `json:"txindex"`
 	Oindex  uint `json:"oindex"`
@@ -185,17 +197,6 @@ type outputUTXO struct {
 	OwnerAddress common.Address `json:"owner"`
 	Amount       uint           `json:"amount"`
 	Currency     common.Address `json:"currency"`
-}
-
-type inputDeposit struct {
-	Txindex uint `json:"txindex"`
-	Oindex  uint `json:"oindex"`
-	Blknum  uint `json:"blknum"`
-}
-
-type createdTx struct {
-	Inputs  []inputUTXO  `json:"inputs"`
-	Outputs []outputUTXO `json:"outputs"`
 }
 
 type input struct {

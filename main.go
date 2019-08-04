@@ -18,10 +18,30 @@ import (
 	"github.com/omisego/plasma-cli/parser"
 	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
+	"github.com/omisego/plasma-cli/plasma"
 )
 
 func main() {
 	util.LogFormatter()
 	log.Info("Starting OmiseGO Plasma MoreVP CLI")
+	// p := plasma.NewConvenientTx()
+	// p.Owner = "0xBddeAeE01f00e02c081D36c100D5DEe723cB9E17"
+	// p.Fee = plasma.Fee{
+	// 	Amount : 0,
+	// 	Currency : "0x0000000000000000000000000000000000000000",
+	// }
+	// p.Metadata = "0x0000000000000000000000000000000000000000000000000000000000000000"
+	// payment := plasma.Payments{
+	// 	Amount: 1000,
+	// 	Owner: "0x0527a37aa7081efcf405bd7c8fe36b01e91df27d",
+	// 	Currency: "0x0000000000000000000000000000000000000000",
+	// }
+	// ps := []plasma.Payments{payment}
+	// p.Payments = ps
+	// resp, err := p.Create("http://watcher.samrong.omg.network/")
+	// if err != nil {
+	// 	log.Error(err)
+	// }
+	// log.Info(resp)
 	parser.ParseArgs()
 }
