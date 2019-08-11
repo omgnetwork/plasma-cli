@@ -503,7 +503,7 @@ func (m *MergeTransaction) MergeBasicTransaction(w string) transactionSuccessRes
 	return submitTransaction(transaction, w)
 }
 
-// Deecode RLP, and rebuild transaction with signatures, finally encode the whole thing
+// Decode RLP, and rebuild transaction with signatures, finally encode the whole thing
 func buildSignedTransaction(signatures [][]byte, unsignedTX string) []byte {
 	var tx transactionToEncode
 	//RLP decode unsignedTx

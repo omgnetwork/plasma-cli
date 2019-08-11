@@ -12,5 +12,6 @@ plasma-cli
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-#vim .swp
+#vim .swp vscode
 *.swp
+.vscode

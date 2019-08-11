@@ -16,7 +16,9 @@ package plasma
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -173,6 +175,11 @@ type ErrorData struct {
 	Description string   `json:"description"`
 	Messages    Messages `json:"messages"`
 }
+type TransactionSubmitTyped struct {
+	Domain     Domain   `json:"domain"`
+	Message    Message  `json:"message"`
+	Signatures []string `json:"signatures"`
+}
 
 func NewConvenientTx() ConvenientTx {
 	return ConvenientTx{}
@@ -213,4 +220,80 @@ func (c *ConvenientTx) Create(w string) (*ConvenientTxResponse, error) {
 	}
 
 	return &response, nil
+}
+
+//getting a typed data hash to be signed
+func (t *Transactions) GetToSignHash() string {
+	return t.SignHash
+}
+
+//getting typed data
+func (t *Transactions) GetTypedData() TypedData {
+	return t.TypedData
+}
+
+//create submitTypedTransaction
+func CreateSubmitTypedTransaction(d Domain, m Message, sigs [][]byte) (TransactionSubmitTyped, error) {
+	var hexsigs []string
+	var typedTx TransactionSubmitTyped
+	for _, s := range sigs {
+		hexsigs = append(hexsigs, fmt.Sprintf("0x%v", hex.EncodeToString(s)))
+	}
+	typedTx.Domain = d
+	typedTx.Message = m
+	typedTx.Signatures = hexsigs
+	return typedTx, nil
+}
+
+//submit transaction to submit_typed endpoint
+func SubmitTypedTransaction(t TransactionSubmitTyped, watcher string) (transactionSuccessResponse, error) {
+	// Build request
+	var url strings.Builder
+	url.WriteString(watcher)
+	url.WriteString("/transaction.submit_typed")
+	js, _ := json.Marshal(t)
+	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
+	if err != nil {
+		log.Fatal(err)
+	}
+	r.Header.Add("Content-Type", "application/json")
+
+	// Make the request
+	client := &http.Client{}
+	resp, err := client.Do(r)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Unmarshall the response
+	response := transactionSuccessResponse{}
+
+	rstring, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	jsonErr := json.Unmarshal([]byte(rstring), &response)
+	if jsonErr != nil {
+		log.Warning("Could not unmarshal successful response from the Watcher")
+		errorInfo := transactionFailureResponse{}
+		processError := json.Unmarshal([]byte(rstring), &errorInfo)
+		if processError != nil { // Response from the Watcher does not match a struct
+			log.Fatal("Unknown response from Watcher API")
+			panic("uh oh")
+		}
+		log.Warning("Unmarshalled JSON error response from the Watcher API")
+		log.Error(errorInfo)
+	} else {
+		log.Info(resp.Status)
+		log.Infof(
+			"\n Response:\n Success: %v \n Blknum: %v \n txindex: %v\n Txhash: %v",
+			response.Success,
+			response.Data.Blknum,
+			response.Data.Txindex,
+			response.Data.Txhash,
+		)
+	}
+
+	return response, nil
 }

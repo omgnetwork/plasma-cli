@@ -80,6 +80,11 @@ func SignTransaction(unsignedTx string, privateKeys []string) [][]byte {
 	}
 	hashed := crypto.Keccak256(unsignedTxBytes)
 
+	return SignHash(hashed, privateKeys)
+}
+
+//sign an already hashed tx bytes returned in tx.create
+func SignHash(hashed []byte, privateKeys []string) [][]byte {
 	var sigs [][]byte
 	for _, pk := range privateKeys {
 		priv, err := crypto.HexToECDSA(FilterZeroX(pk))
