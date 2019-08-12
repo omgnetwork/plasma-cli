@@ -27,6 +27,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	EthCurrency     = "0x0000000000000000000000000000000000000000"
+	DefaultMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"
+)
+
 type PlasmaTransaction interface {
 	Submit() (TransactionSubmitResponse, error)
 }
@@ -44,7 +49,7 @@ type CreateTransaction struct {
 	WatcherEndpoint string
 }
 type Payments struct {
-	Amount   int    `json:"amount"`
+	Amount   uint   `json:"amount"`
 	Currency string `json:"currency"`
 	Owner    string `json:"owner"`
 }
@@ -69,7 +74,7 @@ type Outputs struct {
 	Owner    string `json:"owner"`
 }
 type Fee struct {
-	Amount   int    `json:"amount"`
+	Amount   uint   `json:"amount"`
 	Currency string `json:"currency"`
 }
 type EIP712Domain struct {
@@ -356,7 +361,7 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 	} else {
 		log.Info(resp.Status)
 		log.Fatalf(
-			"\n Error submitting transaction:\n Object: %v \n Code: %v \n Description: %v\n Error key: %v",
+			"\n Error submitting transaction:\n Object: %v \n Code: %v \n Description: %v",
 			response.Data.Object,
 			response.Data.Code,
 			response.Data.Description,
