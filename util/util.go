@@ -71,38 +71,25 @@ type WatcherBalanceFromAddress struct {
 	} `json:"data"`
 }
 
-// Sign a transaction with private keys
-func SignTransaction(unsignedTx string, privateKeys []string) [][]byte {
-	//hash the unsignedTx struct
-	unsignedTxBytes, err := hex.DecodeString(FilterZeroX(unsignedTx))
-	if err != nil {
-		log.Fatal(err)
-	}
-	hashed := crypto.Keccak256(unsignedTxBytes)
-
-	return SignHash(hashed, privateKeys)
-}
-
-//sign an already hashed tx bytes returned in tx.create
-func SignHash(hashed []byte, privateKeys []string) [][]byte {
+//sign an already hashed tx bytes
+func SignHash(hashed []byte, privateKeys []string) ([][]byte, error) {
 	var sigs [][]byte
 	for _, pk := range privateKeys {
 		priv, err := crypto.HexToECDSA(FilterZeroX(pk))
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		//sign the transaction
 		signature, err := crypto.Sign(hashed, priv)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		//adding 27 to last byte, because ethereum
 		copy(signature[64:], []uint8{signature[64] + 27})
 		sigs = append(sigs, signature)
 	}
 
-	//log.Info("transaction signed: ", signature)
-	return sigs
+	return sigs, nil
 }
 
 // Generate Account - Public and Privatekey

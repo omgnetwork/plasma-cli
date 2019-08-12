@@ -20,13 +20,12 @@ import (
 
 	"github.com/omisego/plasma-cli/plasma"
 	"github.com/omisego/plasma-cli/util"
-	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	// util.LogFormatter()
 	// log.Info("Starting OmiseGO Plasma MoreVP CLI")
-	p := plasma.NewConvenientTx()
+	p := plasma.NewCreateTransaction()
 	p.Owner = "0xBddeAeE01f00e02c081D36c100D5DEe723cB9E17"
 	p.Fee = plasma.Fee{
 		Amount:   0,
@@ -34,26 +33,25 @@ func main() {
 	}
 	p.Metadata = "0x0000000000000000000000000000000000000000000000000000000000000000"
 	payment := plasma.Payments{
-		Amount:   1000,
+		Amount:   50,
 		Owner:    "0x0527a37aa7081efcf405bd7c8fe36b01e91df27d",
 		Currency: "0x0000000000000000000000000000000000000000",
 	}
-	ps := []plasma.Payments{payment}
-	p.Payments = ps
-	resp, err := p.Create("https://watcher-development-parity.omg.network/")
-	if err != nil {
-		log.Error(err)
-	}
+	p.Payments = []plasma.Payments{payment}
+	p.WatcherEndpoint = "https://watcher-development-parity.omg.network/"
+	resp, _ := p.CreateTransaction()
 
-	// log.Info(resp.Data.Transactions[0].GetToSignHash())
-	// log.Info(resp.Data.Transactions[0].GetTypedData())
 	pk := ""
 	hash, _ := hex.DecodeString(util.FilterZeroX(resp.Data.Transactions[0].GetToSignHash()))
-	signatures := util.SignHash(hash, []string{pk})
-	typedData := resp.Data.Transactions[0].GetTypedData()
-	tx, _ := plasma.CreateSubmitTypedTransaction(typedData.Domain, typedData.Message, signatures)
-	log.Info(tx)
-	respond, _ := plasma.SubmitTypedTransaction(tx, "https://watcher-development-parity.omg.network/")
-	log.Info(respond)
+	//signatures := util.SignHash(hash, []string{pk})
+	signatures, _ := plasma.Sign(plasma.SingleSigner{ToSign: hash, PrivateKey: pk})
+	tx, _ := plasma.CreateTypedTransaction(
+		resp.Data.Transactions[0].GetTypedData().Domain,
+		resp.Data.Transactions[0].GetTypedData().Message,
+		signatures,
+		"https://watcher-development-parity.omg.network/",
+	)
+	plasma.Submit(tx)
+
 	// parser.ParseArgs()
 }
