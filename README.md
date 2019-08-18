@@ -48,27 +48,21 @@ plasma_cli get utxos --watcher="watcher_URL" --address="public_address"
 ```
 plasma_cli get balance --watcher="watcher_URL" --address="public_address"
 ```
-## Sending ETH UTXO
+## Send transaction
 
-Send an entire UTXO to an address, sends change back to sender if available
-
-```
-plasma_cli send --fromutxo=UTXO_position --privatekey="from_privatekey" --toowner="to_address" --toamount=to_amount  --watcher="watcher_url"
-```
-
-## Split ETH UTXO
-
-Split an entire UTXO input into N outputs to an address, sends change back to sender if available
+creates a send transaction from the balance of the privatekey to a recipient wallet 
+(currently only support 1 recipient). Makes an ETH transaction by default
 
 ```
-plasma_cli split --fromutxo=UTXO_position --privatekey="from_privatekey" --toowner="to_address" --toamount=to_amount  --outputs=number_of_outputs --watcher="watcher_url"
+plasma_cli send --to="address" --privatekey="privatekey" --amount=amount --watcher="watcher_url"
 ```
 
-## Merging ETH UTXOs
-
-Merge 4 or less UTXOs input into 1 output to owner
+optional arguements:
 ```
-plasma_cli merge --fromutxo=UTXO_1 --fromutxo=UTXO_2 --fromutxo=UTXO_3 --privatekey="private_key" --watcher="warcher_url"
+--currency="token_address" 
+--feetoken="token_address"
+--feeamount=fee_amount
+--metadata="hex_string"
 ```
 
 ## Exit to Ethereum

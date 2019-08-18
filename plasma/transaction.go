@@ -226,11 +226,12 @@ type SingleSigner struct {
 	PrivateKey string
 }
 
+//NewCreateTransaction returns a new CreateTransaction struct
 func NewCreateTransaction() CreateTransaction {
 	return CreateTransaction{}
 }
 
-//call the transaction.create HTTP endpoint
+//CreateTransaction creates a transaction by calling `/transaction.create` endpoint
 func (c *CreateTransaction) CreateTransaction() (*CreateTransactionResponse, error) {
 	// Build request
 	var url strings.Builder
@@ -280,17 +281,17 @@ func (c *CreateTransaction) CreateTransaction() (*CreateTransactionResponse, err
 	return &response, nil
 }
 
-//getting a typed data hash to be signed
+//GetToSignHash returns a typed data hash to be signed
 func (t *Transactions) GetToSignHash() string {
 	return t.SignHash
 }
 
-//getting typed data
+//GetTypedData returns the typed data
 func (t *Transactions) GetTypedData() TypedData {
 	return t.TypedData
 }
 
-//create a typed transaction to submit
+//CreateTypedTransaction takse domain, message and signatures, returns a typed transaction
 func CreateTypedTransaction(d Domain, m Message, sigs [][]byte, w string) (TypedTransaction, error) {
 	var hexsigs []string
 	var ttx TypedTransaction
@@ -304,12 +305,12 @@ func CreateTypedTransaction(d Domain, m Message, sigs [][]byte, w string) (Typed
 	return ttx, nil
 }
 
-//sign with a single private key
+//Sign will sign a has with a single private key
 func (s SingleSigner) Sign() ([][]byte, error) {
 	return util.SignHash(s.ToSign, []string{s.PrivateKey})
 }
 
-//submit transaction to submit_typed endpoint
+//Submit takes a typed transaction and it to  "transaction.submit_typed/" endpoint
 func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 	// Build request
 	var url strings.Builder
@@ -371,6 +372,7 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 	return response, nil
 }
 
+//Submit function takes a plasma transaction interface and calls Submit
 func Submit(p PlasmaTransaction) (ts TransactionSubmitResponse, err error) {
 	ts, err = p.Submit()
 	if err != nil {
@@ -379,6 +381,7 @@ func Submit(p PlasmaTransaction) (ts TransactionSubmitResponse, err error) {
 	return ts, nil
 }
 
+//Sign function takes a transaction signer interface and calls sign
 func Sign(t TransactionSigner) (sigs [][]byte, err error) {
 	sigs, err = t.Sign()
 	if err != nil {
