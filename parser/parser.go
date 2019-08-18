@@ -15,9 +15,9 @@
 package parser
 
 import (
+	"encoding/hex"
 	"os"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/omisego/plasma-cli/plasma"
 	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
@@ -32,7 +32,7 @@ var (
 	getBalance       = get.Command("balance", "Retrieve balance of an address from the Watcher service")
 	status           = get.Command("status", "Get status from the Watcher")
 
-	getExit = get.Command("exit", "Get UTXO exit information")
+	getExit             = get.Command("exit", "Get UTXO exit information")
 	getExitUTXOPosition = getExit.Flag("utxo", "Get UTXO exit information").Required().Int()
 
 	deposit         = kingpin.Command("deposit", "Deposit ETH or ERC20 into the Plamsa MoreVP smart contract.")
@@ -44,19 +44,14 @@ var (
 	depositCurrency = deposit.Flag("currency", "Currency of the deposit. Example: ETH").Required().String()
 
 	send             = kingpin.Command("send", "Create a transaction on the OmiseGO Plasma MoreVP network")
-	toowner          = send.Flag("toowner", "New owner of the UTXO").Required().String()
-	privatekey       = send.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
-	toamount         = send.Flag("toamount", "Amount to transact").Required().Uint()
-	fromutxo         = send.Flag("fromutxo", "utxo position to send from").Required().Uint()
+	to               = send.Flag("to", "Wallet address of the recipient").Required().String()
+	privatekey       = send.Flag("privatekey", "Privatekey from a wallet to send from").Required().String()
+	amount           = send.Flag("amount", "Amount to transact").Required().Uint()
+	currency         = send.Flag("currency", "currency of the amount to send, default to ETH").Default(plasma.EthCurrency).String()
 	watcherSubmitURL = send.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
-
-	split             = kingpin.Command("split", "Split an entire UTXO input into N outputs to an address")
-	stoowner          = split.Flag("toowner", "New owner of the UTXO").Required().String()
-	sprivatekey       = split.Flag("privatekey", "privatekey to sign from owner of original UTXO").Required().String()
-	stoamount         = split.Flag("toamount", "Amount to transact").Required().Uint()
-	sfromutxo         = split.Flag("fromutxo", "utxo position to send from").Required().Uint()
-	swatcherSubmitURL = split.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
-	outputs           = split.Flag("outputs", "total amount of output to split utxo into (4 max)").Required().Uint64()
+	feetoken         = send.Flag("feetoken", "set the token to be used as transaction fee, default to ETH").Default(plasma.EthCurrency).String()
+	feeamount        = send.Flag("feeamount", "set the amount to be used as transaction fee, default to 0").Default("0").Uint()
+	metadata         = send.Flag("metadata", "additional metadata to send with the transaction, up to 32 bytes").Default(plasma.DefaultMetadata).String()
 
 	exit           = kingpin.Command("exit", "Standard exit a UTXO back to the root chain.")
 	watcherExitURL = exit.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
@@ -64,11 +59,6 @@ var (
 	utxoPosition   = exit.Flag("utxo", "UTXO Position that will be exited").Required().String()
 	exitPrivateKey = exit.Flag("privatekey", "Private key of the UTXO owner").Required().String()
 	clientExit     = exit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
-
-	merge           = kingpin.Command("merge", "Merge 4 or less UTXOs input into 1 output to owner.")
-	mergeFromUtxos  = merge.Flag("fromutxo", "comma seperated utxo numbers you want to merge").Required().Uint64List()
-	mergeWatcherURL = merge.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
-	mergePrivateKey = merge.Flag("privatekey", "Private key of the UTXO owner").Required().String()
 
 	process           = kingpin.Command("process", "Process all exits that have completed the challenge period")
 	processContract   = process.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
@@ -108,54 +98,30 @@ func ParseArgs() {
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
 		d.DepositToPlasmaContract()
 	case send.FullCommand():
-		//plasma_cli send --fromutxo --privatekey --toowner --toamount --watcher
-		k := util.DeriveAddress(*privatekey)
-		p := plasma.GetUTXO(k, *fromutxo, *watcherSubmitURL)
-
-		c := plasma.PlasmaTransaction{
-			Blknum:     uint(p.Blknum),
-			Txindex:    uint(p.Txindex),
-			Oindex:     uint(p.Oindex),
-			Cur12:      common.HexToAddress(p.Currency),
-			Toowner:    common.HexToAddress(*toowner),
-			Fromowner:  common.HexToAddress(k),
-			Privatekey: *privatekey,
-			Toamount:   *toamount,
-			Fromamount: uint(p.Amount)}
-		c.SendBasicTransaction(*watcherSubmitURL)
-	case split.FullCommand():
-		//plasma_cli split --fromutxo --privatekey --toowner --toamount --watcher --outputs
-		k := util.DeriveAddress(*sprivatekey)
-		p := plasma.GetUTXO(k, *sfromutxo, *swatcherSubmitURL)
-		c := plasma.PlasmaTransaction{
-			Blknum:     uint(p.Blknum),
-			Txindex:    uint(p.Txindex),
-			Oindex:     uint(p.Oindex),
-			Cur12:      common.HexToAddress(p.Currency),
-			Toowner:    common.HexToAddress(*stoowner),
-			Fromowner:  common.HexToAddress(k),
-			Privatekey: *sprivatekey,
-			Toamount:   *stoamount,
-			Fromamount: uint(p.Amount),
-			Outputs:    int(*outputs)}
-		c.SendSplitTransaction(*swatcherSubmitURL)
-	case merge.FullCommand():
-		//plasma_cli merge --fromutxo=10000 --fromutxo=20000 --watcher="http://foo.path" --privatekey="foo"
-		utxos := *mergeFromUtxos
-		var us []plasma.SingleUTXO
-		k := util.DeriveAddress(*mergePrivateKey)
-		log.Info(k)
-		for _, u := range utxos {
-			us = append(us, plasma.GetUTXO(k, uint(u), *mergeWatcherURL))
+		//plasma_cli send --to --privatekey --amount --currency --watcher
+		p := plasma.NewCreateTransaction()
+		p.Owner = util.DeriveAddress(*privatekey)
+		p.Fee = plasma.Fee{Amount: *feeamount, Currency: *feetoken}
+		p.Metadata = *metadata
+		payment := plasma.Payments{
+			Amount:   *amount,
+			Owner:    *to,
+			Currency: *currency,
 		}
+		p.Payments = []plasma.Payments{payment}
+		p.WatcherEndpoint = *watcherSubmitURL
+		resp, _ := p.CreateTransaction()
 
-		m := plasma.MergeTransaction{
-			Utxos:      us,
-			Fromowner:  common.HexToAddress(k),
-			Privatekey: *mergePrivateKey,
-		}
-
-		m.MergeBasicTransaction(*mergeWatcherURL)
+		pk := *privatekey
+		hash, _ := hex.DecodeString(util.FilterZeroX(resp.Data.Transactions[0].GetToSignHash()))
+		signatures, _ := plasma.Sign(plasma.SingleSigner{ToSign: hash, PrivateKey: pk})
+		tx, _ := plasma.CreateTypedTransaction(
+			resp.Data.Transactions[0].GetTypedData().Domain,
+			resp.Data.Transactions[0].GetTypedData().Message,
+			signatures,
+			*watcherSubmitURL,
+		)
+		plasma.Submit(tx)
 	case exit.FullCommand():
 		//plasma_cli exit --utxo=1000000000 --privatekey=foo --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --watcher=ari.omg.network
 		s := plasma.StandardExit{UtxoPosition: util.ConvertStringToInt(*utxoPosition), Contract: *contractExit, PrivateKey: *exitPrivateKey, Client: *clientExit}
