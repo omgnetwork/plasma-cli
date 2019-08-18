@@ -373,19 +373,11 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 }
 
 //Submit function takes a plasma transaction interface and calls Submit
-func Submit(p PlasmaTransaction) (ts TransactionSubmitResponse, err error) {
-	ts, err = p.Submit()
-	if err != nil {
-		return
-	}
-	return ts, nil
+func Submit(p PlasmaTransaction) (TransactionSubmitResponse, error) {
+	return p.Submit()
 }
 
 //Sign function takes a transaction signer interface and calls sign
-func Sign(t TransactionSigner) (sigs [][]byte, err error) {
-	sigs, err = t.Sign()
-	if err != nil {
-		return
-	}
-	return sigs, nil
+func Sign(t TransactionSigner) ([][]byte, error) {
+	return t.Sign()
 }

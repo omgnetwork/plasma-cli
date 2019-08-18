@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"fmt"
+	"errors"
 )
 
 type SpySigner struct {
@@ -35,13 +36,15 @@ type SpySubmiter struct {
 	Result        TransactionSubmitResponse
 }
 
-// func (s *SpySigner) Sign() ([][]byte, error){
+func (s *SpySigner) Sign() ([][]byte, error){
+	s.Called = true
+	return s.Result, s.ErrorResponse
+}
 
-// }
-
-// func (s *SpySubmiter) Submit() (TransactionSubmitResponse, error) {
-
-// }
+func (s *SpySubmiter) Submit() (TransactionSubmitResponse, error) {
+	s.Called = true
+	return s.Result, s.ErrorResponse
+}
 
 // Test the transaction.create/ calls via mocked server
 func TestTransactionCreate(t *testing.T) {
@@ -88,7 +91,75 @@ func TestTransactionCreate(t *testing.T) {
 }
 
 // Test the transaction.submit_typed/ calls via mocked server
+func TestTransactionSubmitTyped(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != "POST" {
+			t.Errorf("unexpected Method call %s, expecting POST request", r.Method)
+		}
+		if r.URL.EscapedPath() != "/transaction.submit_typed" {
+			t.Errorf("unexpected URL path %s, path expected to have /transaction.submit_typed", r.URL.EscapedPath())
+		}
+		rr := `{ "version": "1.0", "success": true, "data": { "blknum": 123000, "txindex": 111, "txhash": "0xbdf562c24ace032176e27621073df58ce1c6f65de3b5932343b70ba03c72132d" } }`
+		sr := TransactionSubmitResponse{} 
+		//expecting correct JSON post request 
+		rstring, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("unexpected error reading from req body: %v", err)
+		}
+		jsonErr := json.Unmarshal([]byte(rstring), &sr)
+
+		if jsonErr != nil {
+			t.Errorf("unexpected error unmarshalling JSON req %v", err)
+		}
+		fmt.Fprintln(w, rr)
+	}))
+	mw := ts.URL
+	defer ts.Close()
+	ctt, err := CreateTypedTransaction(Domain{}, Message{}, [][]byte{}, mw)
+	if err != nil {
+		t.Errorf("unexpected error creating typed transaction %v", err)
+	}
+	_, err = ctt.Submit()
+	if err != nil {
+		t.Errorf("unexpected error submitting typed transaction %v", err)
+	}
+}
 
 // Test the transaction signing returns proper result and error
-
+func TestSigning(t *testing.T) {
+	ss := SpySigner{}
+	_, err := Sign(&ss)
+	if err != nil {
+		t.Errorf("unexpected error from signing: %v", err)
+	}
+	if !ss.Called {
+		t.Errorf("expected signer method to get called, got false")
+	}
+	bs := SpySigner{
+		ErrorResponse: errors.New("mock error from signer"),
+	}
+	_, err = Sign(&bs)
+	if err == nil {
+		t.Errorf("expected error to return from signer, got nil")
+	}
+}
 // Test the transaction submit returns proper result and error
+func TestSubmit(t *testing.T) {
+	ss := SpySubmiter{}
+	_, err := Submit(&ss)
+	if err != nil {
+		t.Errorf("unexpected error from submitting: %v", err)
+	}
+	if !ss.Called {
+		t.Errorf("expected submiting method to get called, got false")
+	}
+	bs := SpySubmiter{
+		ErrorResponse: errors.New("mock error from submit method"),
+	}
+	_, err = Submit(&bs)
+	if err == nil {
+		t.Errorf("expected error to return from signer, got nil")
+	}
+
+}
