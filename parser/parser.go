@@ -68,6 +68,13 @@ var (
 
 	create        = kingpin.Command("create", "Create a resource.")
 	createAccount = create.Command("account", "Create an account consisting of Public and Private key")
+
+	challengeexit  = kingpin.Command("challengeexit", "Challenge an invalid exit on the root chain")
+	ceContract     = challengeexit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
+	ceClient       = challengeexit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
+	cePrivateKey   = challengeexit.Flag("privatekey", "Private key used to fund the gas for the smart contract call").Required().String()
+	ceUTXOPosition = challengeexit.Flag("utxo", "the UTXO to call challenge exit").Required().String()
+	ceWatcherURL   = challengeexit.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 )
 
 func ParseArgs() {
@@ -145,5 +152,13 @@ func ParseArgs() {
 			os.Exit(0)
 		}
 		log.Info("UTXO Position: ", exitData.Data.UtxoPos, " Proof: ", exitData.Data.Proof)
+	case challengeexit.FullCommand():
+		//plasma_cli challengeexit --contract="" --client="" --privatekey="" --utxo="" --watcher=""
+		challengeData, err := plasma.GetChallengeData(*ceWatcherURL, util.ConvertStringToInt(*ceUTXOPosition))
+		log.Info(challengeData)
+		if err != nil {
+			log.Fatalf("got error retrieving challenge data %v", err)
+		}
+		challengeData.ChallengeInvalidExit(*ceClient, *ceContract, *cePrivateKey)
 	}
 }
