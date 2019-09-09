@@ -105,10 +105,10 @@ type ChallengeUTXOData struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
 	Data    struct {
-		ExitId *big.Int `json:"exit_id"`
-		InputIndex *big.Int   `json:"input_index"`
-		Sig   string   `json:"sig"`
-		Txbytes   string   `json:"txbytes"`
+		ExitId     *big.Int `json:"exit_id"`
+		InputIndex uint8    `json:"input_index"`
+		Sig        string   `json:"sig"`
+		Txbytes    string   `json:"txbytes"`
 	} `json:"data"`
 }
 
@@ -203,10 +203,10 @@ func GetWatcherStatus(w string) {
 	}
 	b := DisplayByzantineEvents(response)
 	log.Infof(
-		"Byzantine events:\n Invalid exits: %v, \n unchallenged exits: %v, \n Piggyback available: %v \n non-canonical ife: %v", 
-		b.invalidExit, 
-		b.unchallengedExit, 
-		b.piggyBack, 
+		"Byzantine events:\n Invalid exits: %v, \n unchallenged exits: %v, \n Piggyback available: %v \n non-canonical ife: %v",
+		b.invalidExit,
+		b.unchallengedExit,
+		b.piggyBack,
 		b.nonCanonical,
 	)
 	log.Info("Last validated Childchain block number: ", response.Data.LastValidatedChildBlockNumber)
@@ -610,8 +610,6 @@ func (c *ChallengeUTXOData) ChallengeInvalidExit(ethereumClient string, contract
 	}
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(31415926535) // in wei
-	auth.GasLimit = uint64(210000)       // in units
 	auth.GasPrice = gasPrice
 
 	address := common.HexToAddress(contract)
