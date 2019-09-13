@@ -101,6 +101,17 @@ type StandardExitUTXOData struct {
 	} `json:"data"`
 }
 
+type ChallengeUTXOData struct {
+	Version string `json:"version"`
+	Success bool   `json:"success"`
+	Data    struct {
+		ExitId     *big.Int `json:"exit_id"`
+		InputIndex uint8    `json:"input_index"`
+		Sig        string   `json:"sig"`
+		Txbytes    string   `json:"txbytes"`
+	} `json:"data"`
+}
+
 type watcherStatus struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -117,8 +128,10 @@ type watcherStatus struct {
 }
 
 type ByzantineEvents struct {
-	piggyBack    int
-	nonCanonical int
+	piggyBack        int
+	nonCanonical     int
+	unchallengedExit int
+	invalidExit      int
 }
 
 type watcherError struct {
@@ -137,7 +150,7 @@ type inputDeposit struct {
 	Blknum  uint `json:"blknum"`
 }
 
-type exitDataUTXO struct {
+type ExitDataUTXO struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
 	Data    struct {
@@ -189,7 +202,13 @@ func GetWatcherStatus(w string) {
 		log.Error(jsonErr)
 	}
 	b := DisplayByzantineEvents(response)
-	log.Infof("Byzantine events: Piggyback available: %v non-canonical ife: %v", b.piggyBack, b.nonCanonical)
+	log.Infof(
+		"Byzantine events:\n Invalid exits: %v, \n unchallenged exits: %v, \n Piggyback available: %v \n non-canonical ife: %v",
+		b.invalidExit,
+		b.unchallengedExit,
+		b.piggyBack,
+		b.nonCanonical,
+	)
 	log.Info("Last validated Childchain block number: ", response.Data.LastValidatedChildBlockNumber)
 	log.Info("Last mined Childchain block number: ", response.Data.LastMinedChildBlockNumber)
 }
@@ -197,6 +216,8 @@ func GetWatcherStatus(w string) {
 func DisplayByzantineEvents(b watcherStatus) ByzantineEvents {
 	var n int
 	var p int
+	var ue int
+	var ie int
 
 	for _, v := range b.Data.ByzantineEvents {
 		switch v.Event {
@@ -204,9 +225,13 @@ func DisplayByzantineEvents(b watcherStatus) ByzantineEvents {
 			n++
 		case "piggyback_available":
 			p++
+		case "unchallenged_exit":
+			ue++
+		case "invalid_exit":
+			ie++
 		}
 	}
-	return ByzantineEvents{nonCanonical: n, piggyBack: p}
+	return ByzantineEvents{nonCanonical: n, piggyBack: p, unchallengedExit: ue, invalidExit: ie}
 }
 
 //Retrieve the UTXO exit data from the UTXO position
@@ -513,5 +538,103 @@ func ProcessExits(numberExitsToProcess int64, p ProcessExit) {
 		log.Fatal(err)
 	} else {
 		log.Info("Process exits request to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
+	}
+}
+
+//get challenge data from watcher
+func GetChallengeData(watcher string, utxoPosition int) (ChallengeUTXOData, error) {
+	// Build request
+	var url strings.Builder
+	url.WriteString(watcher)
+	url.WriteString("/utxo.get_challenge_data")
+	postData := map[string]interface{}{"utxo_pos": utxoPosition}
+	js, _ := json.Marshal(postData)
+	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
+	if err != nil {
+		log.Fatal(err)
+	}
+	r.Header.Add("Content-Type", "application/json")
+
+	// Make the request
+	client := &http.Client{}
+	resp, err := client.Do(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	// Unmarshall the response
+	response := ChallengeUTXOData{}
+
+	rstring, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	jsonErr := json.Unmarshal([]byte(rstring), &response)
+	if jsonErr != nil {
+		return response, errors.New("No challenge data found for UTXO provided")
+	} else {
+		log.Info(resp.Status)
+	}
+
+	return response, nil
+}
+
+//challenge invalid exit on the root chain
+func (c *ChallengeUTXOData) ChallengeInvalidExit(ethereumClient string, contract string, private string) {
+	client, err := ethclient.Dial(ethereumClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	privateKey, err := crypto.HexToECDSA(util.FilterZeroX(private))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("Cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	auth := bind.NewKeyedTransactor(privateKey)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.GasPrice = gasPrice
+
+	address := common.HexToAddress(contract)
+	instance, err := rootchain.NewRootchain(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	t := &bind.TransactOpts{}
+	t.From = fromAddress
+	t.Signer = auth.Signer
+	t.GasLimit = 2000000
+
+	txBytesHex, txErr := hex.DecodeString(util.RemoveLeadingZeroX(c.Data.Txbytes))
+	if txErr != nil {
+		log.Fatal(txErr)
+	}
+
+	sigBytesHex, bytesErr := hex.DecodeString(util.RemoveLeadingZeroX(c.Data.Sig))
+	if bytesErr != nil {
+		log.Fatal(bytesErr)
+	}
+	tx, err := instance.ChallengeStandardExit(t, c.Data.ExitId, []byte(txBytesHex), c.Data.InputIndex, []byte(sigBytesHex))
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Info("Challenge exit to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
 	}
 }

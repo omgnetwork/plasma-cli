@@ -70,3 +70,8 @@ optional arguements:
 ```
 plasma_cli exit --utxo=UTXO_position --privatekey="private_key" --contract="contract_address" --watcher="watcher_url" --client="local_rpc_server_or_Infura_URL"
 ```
+
+## 
+```
+plasma_cli challengeexit --contract="contract_address" --client="local_rpc_server_or_Infura_URL" --privatekey="private_key" --utxo="UTXO_position" --watcher="watcher_url"
+```
