@@ -48,29 +48,6 @@ type OutputUTXO struct {
 	Value     uint
 }
 
-type WatcherUTXOsFromAddress struct {
-	Version string `json:"version"`
-	Success bool   `json:"success"`
-	Data    []struct {
-		UtxoPos  int    `json:"utxo_pos"`
-		Txindex  int    `json:"txindex"`
-		Owner    string `json:"owner"`
-		Oindex   int    `json:"oindex"`
-		Currency string `json:"currency"`
-		Blknum   int    `json:"blknum"`
-		Amount   int    `json:"amount"`
-	} `json:"data"`
-}
-
-type WatcherBalanceFromAddress struct {
-	Version string `json:"version"`
-	Success bool   `json:"success"`
-	Data    []struct {
-		Currency string `json:"currency"`
-		Amount   int    `json:"amount"`
-	} `json:"data"`
-}
-
 //sign an already hashed tx bytes
 func SignHash(hashed []byte, privateKeys []string) ([][]byte, error) {
 	var sigs [][]byte
@@ -143,26 +120,6 @@ func convertStringToFloat64(value string) float64 {
 		log.Fatal("Could not convert value")
 	}
 	return f
-}
-
-// Displays the UTXO ownership data in a human friendly format
-func DisplayUTXOS(u WatcherUTXOsFromAddress) {
-	for _, value := range u.Data {
-		log.Info("Owner: ", value.Owner)
-		log.Info("Amount: ", value.Amount)
-		log.Info("Block Number: ", value.Blknum)
-		log.Info("Transaction Index: ", value.Txindex)
-		log.Info("Output Index: ", value.Oindex)
-		log.Info("Currency: ", value.Currency)
-		log.Info("UTXO Position: ", value.UtxoPos)
-	}
-}
-
-func DisplayBalance(b WatcherBalanceFromAddress) {
-	for _, v := range b.Data {
-		log.Info("Currency: ", v.Currency)
-		log.Info("Amount: ", v.Amount)
-	}
 }
 
 // Build the RLP encoded input to the smart contract that
