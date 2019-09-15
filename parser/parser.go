@@ -86,7 +86,10 @@ func ParseArgs() {
 			log.Error("Address is required to get UTXO data")
 			os.Exit(1)
 		}
-		utxos := plasma.GetUTXOsFromAddress(ownerUTXOAddress, *watcherURL)
+		utxos, err := plasma.GetUTXOsFromAddress(ownerUTXOAddress, *watcherURL)
+		if err != nil {
+			log.Error(err)
+		}
 		plasma.DisplayUTXOS(utxos)
 	case getBalance.FullCommand():
 		//plamsa_cli get balance --address=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --watcher=http://watcher.path.net

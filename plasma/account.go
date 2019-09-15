@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -49,7 +50,7 @@ type WatcherBalanceFromAddress struct {
 }
 
 // log the UTXO data in a human friendly format
-func DisplayUTXOS(u WatcherUTXOsFromAddress) {
+func DisplayUTXOS(u *WatcherUTXOsFromAddress) {
 	for _, value := range u.Data {
 		log.Info("Owner: ", value.Owner)
 		log.Info("Amount: ", value.Amount)
@@ -62,7 +63,7 @@ func DisplayUTXOS(u WatcherUTXOsFromAddress) {
 }
 
 // log the balance data in a human friendly format
-func DisplayBalance(b WatcherBalanceFromAddress) {
+func DisplayBalance(b *WatcherBalanceFromAddress) {
 	for _, v := range b.Data {
 		log.Info("Currency: ", v.Currency)
 		log.Info("Amount: ", v.Amount)
@@ -101,7 +102,7 @@ func GetUTXOsFromAddress(address string, w string) (*WatcherUTXOsFromAddress, er
 	jsonErr := json.Unmarshal([]byte(rstring), &response)
 	if jsonErr != nil {
 		return nil, err
-	} 
+	}
 
 	return &response, nil
 }
@@ -143,7 +144,7 @@ func GetBalance(address string, watcher string) (*WatcherBalanceFromAddress, err
 		if processError != nil { // Response from the Watcher does not match a struct
 			return nil, err
 		}
-	} 
+	}
 
 	return &response, nil
 }
