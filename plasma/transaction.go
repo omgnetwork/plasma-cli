@@ -15,13 +15,10 @@
 package plasma
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
@@ -233,34 +230,18 @@ func NewCreateTransaction() CreateTransaction {
 
 //CreateTransaction creates a transaction by calling `/transaction.create` endpoint
 func (c *CreateTransaction) CreateTransaction() (*CreateTransactionResponse, error) {
-	// Build request
-	var url strings.Builder
-	url.WriteString(c.WatcherEndpoint)
-	url.WriteString("/transaction.create")
-	js, _ := json.Marshal(c)
-	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
-	if err != nil {
-		log.Fatal(err)
-	}
-	r.Header.Add("Content-Type", "application/json")
-
-	// Make the request
 	client := &http.Client{}
-	resp, err := client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Unmarshall the response
+	rstring, err := util.MakeChChReq(
+		client,
+		c.WatcherEndpoint,
+		"/transaction.create",
+		c,
+	)
 	response := CreateTransactionResponse{}
-
-	rstring, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 	jsonErr := json.Unmarshal([]byte(rstring), &response)
-
 	if jsonErr != nil {
 		return nil, jsonErr
 	}
@@ -312,32 +293,20 @@ func (s SingleSigner) Sign() ([][]byte, error) {
 
 //Submit takes a typed transaction and it to  "transaction.submit_typed/" endpoint
 func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
-	// Build request
-	var url strings.Builder
-	url.WriteString(t.WatcherEndpoint)
-	url.WriteString("/transaction.submit_typed")
-	js, _ := json.Marshal(t)
-	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
-	if err != nil {
-		log.Fatal(err)
-	}
-	r.Header.Add("Content-Type", "application/json")
-
-	// Make the request
 	client := &http.Client{}
-	resp, err := client.Do(r)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	// Unmarshall the response
+	rstring, err := util.MakeChChReq(
+		client,
+		t.WatcherEndpoint,
+		"/transaction.submit_typed",
+		t,
+	)
 	response := TransactionSubmitResponse{}
 
-	rstring, err := ioutil.ReadAll(resp.Body)
+	// rstring, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// // Unmarshall the response
 	jsonErr := json.Unmarshal([]byte(rstring), &response)
 	if jsonErr != nil {
 		log.Warning("Could not unmarshal successful response from the Watcher")
@@ -345,13 +314,11 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 		processError := json.Unmarshal([]byte(rstring), &errorInfo)
 		if processError != nil { // Response from the Watcher does not match a struct
 			log.Fatal("Unknown response from Watcher API")
-			panic("uh oh")
 		}
 		log.Warning("Unmarshalled JSON error response from the Watcher API")
 		log.Error(errorInfo)
 	}
 	if response.Success == true {
-		log.Info(resp.Status)
 		log.Infof(
 			"\n Response:\n Success: %v \n Blknum: %v \n txindex: %v\n Txhash: %v",
 			response.Success,
@@ -360,7 +327,6 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 			response.Data.Txhash,
 		)
 	} else {
-		log.Info(resp.Status)
 		log.Fatalf(
 			"\n Error submitting transaction:\n Object: %v \n Code: %v \n Description: %v",
 			response.Data.Object,
