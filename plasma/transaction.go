@@ -24,13 +24,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
+const (
 	EthCurrency     = "0x0000000000000000000000000000000000000000"
 	DefaultMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"
 )
 
 type PlasmaTransaction interface {
-	Submit() (TransactionSubmitResponse, error)
+	Submit() (*TransactionSubmitResponse, error)
 }
 
 type TransactionSigner interface {
@@ -273,7 +273,7 @@ func (t *Transactions) GetTypedData() TypedData {
 }
 
 //CreateTypedTransaction takse domain, message and signatures, returns a typed transaction
-func CreateTypedTransaction(d Domain, m Message, sigs [][]byte, w string) (TypedTransaction, error) {
+func CreateTypedTransaction(d Domain, m Message, sigs [][]byte, w string) (*TypedTransaction, error) {
 	var hexsigs []string
 	var ttx TypedTransaction
 	for _, s := range sigs {
@@ -283,7 +283,7 @@ func CreateTypedTransaction(d Domain, m Message, sigs [][]byte, w string) (Typed
 	ttx.Message = m
 	ttx.Signatures = hexsigs
 	ttx.WatcherEndpoint = w
-	return ttx, nil
+	return &ttx, nil
 }
 
 //Sign will sign a has with a single private key
@@ -292,7 +292,7 @@ func (s SingleSigner) Sign() ([][]byte, error) {
 }
 
 //Submit takes a typed transaction and it to  "transaction.submit_typed/" endpoint
-func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
+func (t TypedTransaction) Submit() (*TransactionSubmitResponse, error) {
 	client := &http.Client{}
 	rstring, err := util.MakeChChReq(
 		client,
@@ -313,11 +313,17 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 		errorInfo := TransactionSubmitFailureResponse{}
 		processError := json.Unmarshal([]byte(rstring), &errorInfo)
 		if processError != nil { // Response from the Watcher does not match a struct
-			log.Fatal("Unknown response from Watcher API")
+			return nil, err
 		}
 		log.Warning("Unmarshalled JSON error response from the Watcher API")
 		log.Error(errorInfo)
 	}
+
+	return &response, nil
+}
+
+//Display transaction.submit response
+func DisplaySubmitResponse(response *TransactionSubmitResponse) {
 	if response.Success == true {
 		log.Infof(
 			"\n Response:\n Success: %v \n Blknum: %v \n txindex: %v\n Txhash: %v",
@@ -334,12 +340,10 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 			response.Data.Description,
 		)
 	}
-
-	return response, nil
 }
 
 //Submit function takes a plasma transaction interface and calls Submit
-func Submit(p PlasmaTransaction) (TransactionSubmitResponse, error) {
+func Submit(p PlasmaTransaction) (*TransactionSubmitResponse, error) {
 	return p.Submit()
 }
 

@@ -105,7 +105,11 @@ func ParseArgs() {
 		plasma.DisplayBalance(balance)
 	case status.FullCommand():
 		//plamsa_cli get status --watcher=http://watcher.path.net
-		plasma.GetWatcherStatus(*watcherURL)
+		ws, err := plasma.GetWatcherStatus(*watcherURL)
+		if err != nil {
+			log.Error(err)
+		}
+		plasma.DisplayByzantineEvents(ws)
 	case deposit.FullCommand():
 		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377 --currency=ETH
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
@@ -134,7 +138,8 @@ func ParseArgs() {
 			signatures,
 			*watcherSubmitURL,
 		)
-		plasma.Submit(tx)
+		r, _ := plasma.Submit(tx)
+		plasma.DisplaySubmitResponse(r)
 	case exit.FullCommand():
 		//plasma_cli exit --utxo=1000000000 --privatekey=foo --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --watcher=ari.omg.network
 		s := plasma.StandardExit{UtxoPosition: util.ConvertStringToInt(*utxoPosition), Contract: *contractExit, PrivateKey: *exitPrivateKey, Client: *clientExit}
