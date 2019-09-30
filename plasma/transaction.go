@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"math/big"
 
 	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
@@ -60,7 +61,7 @@ type Inputs struct {
 	Blknum   int    `json:"blknum"`
 	Txindex  int    `json:"txindex"`
 	Oindex   int    `json:"oindex"`
-	UtxoPos  int64  `json:"utxo_pos"`
+	UtxoPos  *big.Int  `json:"utxo_pos"`
 	Owner    string `json:"owner"`
 	Currency string `json:"currency"`
 	Amount   int    `json:"amount"`
@@ -231,7 +232,7 @@ func NewCreateTransaction() CreateTransaction {
 //CreateTransaction creates a transaction by calling `/transaction.create` endpoint
 func (c *CreateTransaction) CreateTransaction() (*CreateTransactionResponse, error) {
 	client := &http.Client{}
-	rstring, err := util.MakeChChReq(
+	rstring, err := util.SendChChReq(
 		client,
 		c.WatcherEndpoint,
 		"/transaction.create",
@@ -294,7 +295,7 @@ func (s SingleSigner) Sign() ([][]byte, error) {
 //Submit takes a typed transaction and it to  "transaction.submit_typed/" endpoint
 func (t TypedTransaction) Submit() (*TransactionSubmitResponse, error) {
 	client := &http.Client{}
-	rstring, err := util.MakeChChReq(
+	rstring, err := util.SendChChReq(
 		client,
 		t.WatcherEndpoint,
 		"/transaction.submit_typed",

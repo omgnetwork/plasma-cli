@@ -128,16 +128,6 @@ type inputDeposit struct {
 	Blknum  uint `json:"blknum"`
 }
 
-type ExitDataUTXO struct {
-	Version string `json:"version"`
-	Success bool   `json:"success"`
-	Data    struct {
-		UtxoPos int64  `json:"utxo_pos"`
-		Txbytes string `json:"txbytes"`
-		Proof   string `json:"proof"`
-	} `json:"data"`
-}
-
 // Start a standard exit from user provided UTXO & private key
 func (s *StandardExit) StartStandardExit(watcher string) {
 	log.Info("Getting data needed to exit the UTXO from the Watcher")

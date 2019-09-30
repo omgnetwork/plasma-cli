@@ -17,6 +17,7 @@ package plasma
 import (
 	"encoding/json"
 	"net/http"
+	"math/big"
 
 	"github.com/omisego/plasma-cli/util"
 
@@ -28,7 +29,7 @@ type WatcherUTXOsFromAddress struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
 	Data    []struct {
-		UtxoPos  int     `json:"utxo_pos"`
+		UtxoPos  *big.Int     `json:"utxo_pos"`
 		Txindex  int     `json:"txindex"`
 		Owner    string  `json:"owner"`
 		Oindex   int     `json:"oindex"`
@@ -73,7 +74,7 @@ func DisplayBalance(b *WatcherBalanceFromAddress) {
 func GetUTXOsFromAddress(address string, w string) (*WatcherUTXOsFromAddress, error) {
 	client := &http.Client{}
 	postData := map[string]interface{}{"address": address, "limit": "10000"}
-	rstring, err := util.MakeChChReq(
+	rstring, err := util.SendChChReq(
 		client,
 		w,
 		"/account.get_utxos",
@@ -92,7 +93,7 @@ func GetUTXOsFromAddress(address string, w string) (*WatcherUTXOsFromAddress, er
 func GetBalance(address string, watcher string) (*WatcherBalanceFromAddress, error) {
 	client := &http.Client{}
 	postData := map[string]interface{}{"address": address}
-	rstring, err := util.MakeChChReq(
+	rstring, err := util.SendChChReq(
 		client,
 		watcher,
 		"/account.get_balance",

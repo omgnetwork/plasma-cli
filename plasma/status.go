@@ -18,8 +18,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"math/big"
 
-	"github.com/omisego/plasma-cli/util"
+	"github.com/omisego/plasma-cli/util"	
 	log "github.com/sirupsen/logrus"
 )
 
@@ -41,7 +42,7 @@ type WatcherStatus struct {
 
 type InvalidExitDetails struct {
 	EthHeight int     `json:"eth_height"`
-	UtxoPos   float64 `json:"utxo_pos"`
+	UtxoPos   *big.Int `json:"utxo_pos"`
 	Owner     string  `json:"owner"`
 	Currency  string  `json:"currency"`
 	Amount    float64 `json:"amount"`
@@ -57,7 +58,7 @@ type ByzantineEvents struct {
 // Get the Watcher's status
 func GetWatcherStatus(w string) (*WatcherStatus, error) {
 	client := &http.Client{}
-	rstring, err := util.MakeChChReq(
+	rstring, err := util.SendChChReq(
 		client,
 		w,
 		"/status.get",

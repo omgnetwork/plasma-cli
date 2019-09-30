@@ -26,7 +26,7 @@ type ChChRequester interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func MakeChChReq(
+func SendChChReq(
 	chchRequest ChChRequester,
 	chchClient string,
 	method string,
