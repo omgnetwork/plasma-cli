@@ -27,11 +27,23 @@ func TestGetStatus(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error from getting status: %v", err)
 	}
-	dbe := DisplayByzantineEvents(status)
-	if dbe.InvalidExit != 1 {
-		t.Errorf("unexpected number of invalid exits, expecting %v, got %v", 1, dbe.InvalidExit)
+	var ie int
+	var ue int
+
+	for _, v := range status.Data.ByzantineEvents {
+		switch v.Event {
+		case "unchallenged_exit":
+			ue++
+		case "invalid_exit":
+			ie++
+		}
 	}
-	if dbe.UnchallengedExit != 1 {
-		t.Errorf("unexpected number of unchallenged exits, expecting %v, got %v", 1, dbe.NonCanonical)
+
+	if ie != 1 {
+		t.Errorf("expected %v invalid exit, got %v", 1, ie)
+	}
+
+	if ue != 1 {
+		t.Errorf("expected %v unchallenged exit, got %v", 1, ue)
 	}
 }
