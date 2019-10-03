@@ -391,8 +391,17 @@ func DisplaySubmitResponse(response *TransactionSubmitResponse) {
 
 //Display transaction.get response
 func DisplayGetResponse(response *TransactionGetResponse) {
+	log.Infof(
+		"\n tx-index: %v ,\n tx-hash: %v,\n meta-data: %v,\n",
+		response.Data.Txindex,
+		response.Data.Txhash,
+		response.Data.Metadata,
+	)
 	//TODO find a prettier way to do this
-	log.WithFields(log.Fields{"fields": fmt.Sprintf("%+v", response)}).Info("Transaction.get response")
+	log.Infof("tx-bytes: %v", response.Data.Txbytes)
+	log.WithFields(log.Fields{"Block": fmt.Sprintf("%+v", response.Data.Block)}).Info("Block Data")
+	log.WithFields(log.Fields{"inputs": fmt.Sprintf("%+v", response.Data.Inputs)}).Info("Inputs UTXOs")
+	log.WithFields(log.Fields{"outputs": fmt.Sprintf("%+v", response.Data.Outputs)}).Info("Outputs UTXOs")
 }
 
 //Submit function takes a plasma transaction interface and calls Submit
