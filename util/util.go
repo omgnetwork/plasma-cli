@@ -25,6 +25,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	EthCurrency     = "0x0000000000000000000000000000000000000000"
+	DefaultMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"
+)
+
 type DepositParent struct {
 	UTXOInputs  []InputDeposit
 	UTXOOutputs []interface{}
