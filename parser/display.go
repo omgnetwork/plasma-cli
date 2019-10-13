@@ -90,8 +90,17 @@ func DisplayByzantineEvents(b *childchain.WatcherStatus) ByzantineEventCounts {
 		p,
 		n,
 	)
-	log.Info("Last validated Childchain block number: ", b.Data.LastValidatedChildBlockNumber)
-	log.Info("Last mined Childchain block number: ", b.Data.LastMinedChildBlockNumber)
+	log.Info("Contract Address: ", b.Data.ContractAddr)
+	log.Info("LastValidatedChildBlockNumber: ", b.Data.LastValidatedChildBlockNumber)
+	log.Info("LastValidatedChildBlockTimestamp: ", b.Data.LastValidatedChildBlockTimestamp)
+	log.Info("LastMinedChildBlockNumber: ", b.Data.LastMinedChildBlockNumber)
+	log.Info("LastMinedChildBlockTimestamp: ", b.Data.LastMinedChildBlockTimestamp)
+	log.Info("LastSeenEthBlockNumber: ", b.Data.LastSeenEthBlockNumber)
+	log.Info("LastSeenEthBlockTimestamp: ", b.Data.LastSeenEthBlockTimestamp)
+	log.Info("ETH syncing: ", b.Data.EthSyncing)
+	for _, v := range b.Data.ServicesSyncedHeights {
+		log.Infof("%v: %v", v.Service, v.Height)
+	}
 
 	return ByzantineEventCounts{NonCanonical: n, PiggyBack: p, UnchallengedExit: ue, InvalidExit: ie}
 }

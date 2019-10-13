@@ -16,8 +16,9 @@ package parser
 
 import (
 	"encoding/hex"
-	"os"
+	"net/http"
 
+	"github.com/omisego/plasma-cli/childchain"
 	"github.com/omisego/plasma-cli/plasma"
 	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
@@ -83,35 +84,37 @@ func ParseArgs() {
 	switch kingpin.Parse() {
 	case getUTXO.FullCommand():
 		//plasma_cli get utxos --address=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --watcher=http://watcher.path.net
-		ownerUTXOAddress := *ownerUTXOAddress
-		if len(ownerUTXOAddress) == 0 {
-			log.Error("Address is required to get UTXO data")
-			os.Exit(1)
-		}
-		utxos, err := plasma.GetUTXOsFromAddress(ownerUTXOAddress, *watcherURL)
+		chch, err := childchain.NewClient(*watcherURL, &http.Client{})
 		if err != nil {
 			log.Error(err)
 		}
-		plasma.DisplayUTXOS(utxos)
+		utxos, err := chch.GetUTXOsFromAddress(*ownerUTXOAddress)
+		if err != nil {
+			log.Error(err)
+		}
+		DisplayUTXOS(utxos)
 	case getBalance.FullCommand():
 		//plamsa_cli get balance --address=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --watcher=http://watcher.path.net
-		ownerBalanceAddress := *ownerUTXOAddress
-		if len(ownerBalanceAddress) == 0 {
-			log.Error("Address is required to get balance")
-			os.Exit(1)
-		}
-		balance, err := plasma.GetBalance(ownerBalanceAddress, *watcherURL)
+		chch, err := childchain.NewClient(*watcherURL, &http.Client{})
 		if err != nil {
 			log.Error(err)
 		}
-		plasma.DisplayBalance(balance)
+		balance, err := chch.GetBalance(*ownerUTXOAddress)
+		if err != nil {
+			log.Error(err)
+		}
+		DisplayBalance(balance)
 	case status.FullCommand():
 		//plamsa_cli get status --watcher=http://watcher.path.net
-		ws, err := plasma.GetWatcherStatus(*watcherURL)
+		chch, err := childchain.NewClient(*watcherURL, &http.Client{})
 		if err != nil {
 			log.Error(err)
 		}
-		plasma.DisplayByzantineEvents(ws)
+		ws, err := chch.GetWatcherStatus()
+		if err != nil {
+			log.Error(err)
+		}
+		DisplayByzantineEvents(ws)
 	case deposit.FullCommand():
 		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377 --currency=ETH
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
@@ -164,11 +167,14 @@ func ParseArgs() {
 		util.GenerateAccount()
 	case getExit.FullCommand():
 		//plasma_cli get exit --watcher=https://watcher.ari.omg.network --utxo=1000000000000
-		log.Info("Getting UTXO exit data")
-		exitData, err := plasma.GetUTXOExitData(*watcherURL, *getExitUTXOPosition)
+		chch, err := childchain.NewClient(*watcherURL, &http.Client{})
 		if err != nil {
-			log.Warn(err)
-			os.Exit(0)
+			log.Error(err)
+		}
+		log.Info("Getting UTXO exit data")
+		exitData, err := chch.GetUTXOExitData(*getExitUTXOPosition)
+		if err != nil {
+			log.Error(err)
 		}
 		log.Info("UTXO Position: ", exitData.Data.UtxoPos, " Proof: ", exitData.Data.Proof)
 	case challengeexit.FullCommand():

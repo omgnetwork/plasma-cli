@@ -20,18 +20,33 @@ import (
 
 //only displaying invalid exit details for now
 type WatcherStatus struct {
-	Version string `json:"version"`
-	Success bool   `json:"success"`
-	Data    struct {
-		LastValidatedChildBlockNumber int  `json:"last_validated_child_block_number"`
-		LastMinedChildBlockTimestamp  int  `json:"last_mined_child_block_timestamp"`
-		LastMinedChildBlockNumber     int  `json:"last_mined_child_block_number"`
-		EthSyncing                    bool `json:"eth_syncing"`
-		ByzantineEvents               []struct {
+	Data struct {
+		ByzantineEvents []struct {
 			Event   string                 `json:"event"`
 			Details map[string]interface{} `json:"details"`
 		} `json:"byzantine_events"`
+		ContractAddr  string `json:"contract_addr"`
+		EthSyncing    bool   `json:"eth_syncing"`
+		InFlightExits []struct {
+			EthHeight          int           `json:"eth_height"`
+			PiggybackedInputs  []interface{} `json:"piggybacked_inputs"`
+			PiggybackedOutputs []interface{} `json:"piggybacked_outputs"`
+			Txbytes            string        `json:"txbytes"`
+			Txhash             string        `json:"txhash"`
+		} `json:"in_flight_exits"`
+		LastMinedChildBlockNumber        int `json:"last_mined_child_block_number"`
+		LastMinedChildBlockTimestamp     int `json:"last_mined_child_block_timestamp"`
+		LastSeenEthBlockNumber           int `json:"last_seen_eth_block_number"`
+		LastSeenEthBlockTimestamp        int `json:"last_seen_eth_block_timestamp"`
+		LastValidatedChildBlockNumber    int `json:"last_validated_child_block_number"`
+		LastValidatedChildBlockTimestamp int `json:"last_validated_child_block_timestamp"`
+		ServicesSyncedHeights            []struct {
+			Height  int    `json:"height"`
+			Service string `json:"service"`
+		} `json:"services_synced_heights"`
 	} `json:"data"`
+	Success bool   `json:"success"`
+	Version string `json:"version"`
 }
 
 // Get the Watcher's status

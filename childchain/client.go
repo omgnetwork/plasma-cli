@@ -24,10 +24,14 @@ import (
 	"strings"
 )
 
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 // Child chain client
 type Client struct {
 	Watcher    *url.URL
-	HttpClient *http.Client
+	HttpClient HttpClient
 }
 
 type ClientError struct {
@@ -41,7 +45,7 @@ type ClientError struct {
 }
 
 // Creates new instance of child chain client with a watcher endpoint
-func NewClient(watcher string, httpclient *http.Client) (*Client, error) {
+func NewClient(watcher string, httpclient HttpClient) (*Client, error) {
 	if watcher == "" {
 		return nil, fmt.Errorf("Error parsing watcher: %v", watcher)
 	}

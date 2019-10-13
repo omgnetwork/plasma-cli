@@ -13,3 +13,13 @@
 // limitations under the License.
 
 package childchain
+
+// Initialize a simple payment transaction
+
+// Build transaction with simple payment transaction
+
+// Build transaction with simple payment transaction
+
+// Simple sign transaction with private key string
+
+// Submit simple payment transaction
