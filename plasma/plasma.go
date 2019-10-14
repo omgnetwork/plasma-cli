@@ -112,28 +112,6 @@ type ChallengeUTXOData struct {
 	} `json:"data"`
 }
 
-type watcherStatus struct {
-	Version string `json:"version"`
-	Success bool   `json:"success"`
-	Data    struct {
-		LastValidatedChildBlockNumber int  `json:"last_validated_child_block_number"`
-		LastMinedChildBlockTimestamp  int  `json:"last_mined_child_block_timestamp"`
-		LastMinedChildBlockNumber     int  `json:"last_mined_child_block_number"`
-		EthSyncing                    bool `json:"eth_syncing"`
-		ByzantineEvents               []struct {
-			Event   string   `json:"event"`
-			Details struct{} `json:"details"`
-		} `json:"byzantine_events"`
-	} `json:"data"`
-}
-
-type ByzantineEvents struct {
-	piggyBack        int
-	nonCanonical     int
-	unchallengedExit int
-	invalidExit      int
-}
-
 type watcherError struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -150,16 +128,6 @@ type inputDeposit struct {
 	Blknum  uint `json:"blknum"`
 }
 
-type ExitDataUTXO struct {
-	Version string `json:"version"`
-	Success bool   `json:"success"`
-	Data    struct {
-		UtxoPos int64  `json:"utxo_pos"`
-		Txbytes string `json:"txbytes"`
-		Proof   string `json:"proof"`
-	} `json:"data"`
-}
-
 // Start a standard exit from user provided UTXO & private key
 func (s *StandardExit) StartStandardExit(watcher string) {
 	log.Info("Getting data needed to exit the UTXO from the Watcher")
@@ -168,70 +136,6 @@ func (s *StandardExit) StartStandardExit(watcher string) {
 		log.Fatal(err)
 	}
 	exit.StartStandardExit(s.Client, s.Contract, s.PrivateKey)
-}
-
-// Get the Watcher's status
-func GetWatcherStatus(w string) {
-	var url strings.Builder
-	url.WriteString(w)
-	url.WriteString("/status.get")
-	r, err := http.NewRequest("POST", url.String(), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	r.Header.Add("Content-Type", "application/json")
-
-	// Make the request
-	client := &http.Client{}
-	resp, err := client.Do(r)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	// Unmarshall the response
-	response := watcherStatus{}
-
-	rstring, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	jsonErr := json.Unmarshal([]byte(rstring), &response)
-	if jsonErr != nil {
-		log.Error(jsonErr)
-	}
-	b := DisplayByzantineEvents(response)
-	log.Infof(
-		"Byzantine events:\n Invalid exits: %v, \n unchallenged exits: %v, \n Piggyback available: %v \n non-canonical ife: %v",
-		b.invalidExit,
-		b.unchallengedExit,
-		b.piggyBack,
-		b.nonCanonical,
-	)
-	log.Info("Last validated Childchain block number: ", response.Data.LastValidatedChildBlockNumber)
-	log.Info("Last mined Childchain block number: ", response.Data.LastMinedChildBlockNumber)
-}
-
-func DisplayByzantineEvents(b watcherStatus) ByzantineEvents {
-	var n int
-	var p int
-	var ue int
-	var ie int
-
-	for _, v := range b.Data.ByzantineEvents {
-		switch v.Event {
-		case "non_canonical_ife":
-			n++
-		case "piggyback_available":
-			p++
-		case "unchallenged_exit":
-			ue++
-		case "invalid_exit":
-			ie++
-		}
-	}
-	return ByzantineEvents{nonCanonical: n, piggyBack: p, unchallengedExit: ue, invalidExit: ie}
 }
 
 //Retrieve the UTXO exit data from the UTXO position
@@ -272,7 +176,6 @@ func GetUTXOExitData(watcher string, utxoPosition int) (StandardExitUTXOData, er
 
 	return response, nil
 }
-
 
 // Start standard exit by calling the method in the smart contract
 func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract string, private string) {

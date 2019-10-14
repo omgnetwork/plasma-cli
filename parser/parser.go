@@ -31,6 +31,8 @@ var (
 	ownerUTXOAddress = get.Flag("address", "Owner address to search UTXOs").String()
 	getBalance       = get.Command("balance", "Retrieve balance of an address from the Watcher service")
 	status           = get.Command("status", "Get status from the Watcher")
+	transaction      = get.Command("transaction", "get transaction details")
+	txHash           = get.Flag("txhash", "transaction hash of the transaction you would like to get the information for").String()
 
 	getExit             = get.Command("exit", "Get UTXO exit information")
 	getExitUTXOPosition = getExit.Flag("utxo", "Get UTXO exit information").Required().Int()
@@ -46,11 +48,11 @@ var (
 	send             = kingpin.Command("send", "Create a transaction on the OmiseGO Plasma MoreVP network")
 	to               = send.Flag("to", "Wallet address of the recipient").Required().String()
 	privatekey       = send.Flag("privatekey", "Privatekey from a wallet to send from").Required().String()
-	amount           = send.Flag("amount", "Amount to transact").Required().Uint()
+	amount           = send.Flag("amount", "Amount to transact").Required().Uint64()
 	currency         = send.Flag("currency", "currency of the amount to send, default to ETH").Default(plasma.EthCurrency).String()
 	watcherSubmitURL = send.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
 	feetoken         = send.Flag("feetoken", "set the token to be used as transaction fee, default to ETH").Default(plasma.EthCurrency).String()
-	feeamount        = send.Flag("feeamount", "set the amount to be used as transaction fee, default to 0").Default("0").Uint()
+	feeamount        = send.Flag("feeamount", "set the amount to be used as transaction fee, default to 0").Default("0").Uint64()
 	metadata         = send.Flag("metadata", "additional metadata to send with the transaction, up to 32 bytes").Default(plasma.DefaultMetadata).String()
 
 	exit           = kingpin.Command("exit", "Standard exit a UTXO back to the root chain.")
@@ -69,7 +71,7 @@ var (
 	create        = kingpin.Command("create", "Create a resource.")
 	createAccount = create.Command("account", "Create an account consisting of Public and Private key")
 
-	challengeexit  = kingpin.Command("challengeexit", "Challenge an invalid exit on the root chain")
+	challengeexit  = kingpin.Command("challenge exit", "Challenge an invalid exit on the root chain")
 	ceContract     = challengeexit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
 	ceClient       = challengeexit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 	cePrivateKey   = challengeexit.Flag("privatekey", "Private key used to fund the gas for the smart contract call").Required().String()
@@ -105,7 +107,11 @@ func ParseArgs() {
 		plasma.DisplayBalance(balance)
 	case status.FullCommand():
 		//plamsa_cli get status --watcher=http://watcher.path.net
-		plasma.GetWatcherStatus(*watcherURL)
+		ws, err := plasma.GetWatcherStatus(*watcherURL)
+		if err != nil {
+			log.Error(err)
+		}
+		plasma.DisplayByzantineEvents(ws)
 	case deposit.FullCommand():
 		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377 --currency=ETH
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
@@ -134,7 +140,14 @@ func ParseArgs() {
 			signatures,
 			*watcherSubmitURL,
 		)
-		plasma.Submit(tx)
+		r, _ := plasma.Submit(tx)
+		plasma.DisplaySubmitResponse(r)
+	case transaction.FullCommand():
+		gtx, err := plasma.GetTransaction(*txHash, *watcherURL)
+		if err != nil {
+			log.Errorf("got error: %v", err)
+		}
+		plasma.DisplayGetResponse(gtx)
 	case exit.FullCommand():
 		//plasma_cli exit --utxo=1000000000 --privatekey=foo --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --watcher=ari.omg.network
 		s := plasma.StandardExit{UtxoPosition: util.ConvertStringToInt(*utxoPosition), Contract: *contractExit, PrivateKey: *exitPrivateKey, Client: *clientExit}

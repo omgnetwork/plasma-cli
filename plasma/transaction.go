@@ -15,25 +15,23 @@
 package plasma
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"math/big"
 	"net/http"
-	"strings"
 
 	"github.com/omisego/plasma-cli/util"
 	log "github.com/sirupsen/logrus"
 )
 
-var (
+const (
 	EthCurrency     = "0x0000000000000000000000000000000000000000"
 	DefaultMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"
 )
 
 type PlasmaTransaction interface {
-	Submit() (TransactionSubmitResponse, error)
+	Submit() (*TransactionSubmitResponse, error)
 }
 
 type TransactionSigner interface {
@@ -49,7 +47,7 @@ type CreateTransaction struct {
 	WatcherEndpoint string
 }
 type Payments struct {
-	Amount   uint   `json:"amount"`
+	Amount   uint64 `json:"amount"`
 	Currency string `json:"currency"`
 	Owner    string `json:"owner"`
 }
@@ -60,21 +58,21 @@ type CreateTransactionResponse struct {
 	Data    Data   `json:"data"`
 }
 type Inputs struct {
-	Blknum   int    `json:"blknum"`
-	Txindex  int    `json:"txindex"`
-	Oindex   int    `json:"oindex"`
-	UtxoPos  int64  `json:"utxo_pos"`
-	Owner    string `json:"owner"`
-	Currency string `json:"currency"`
-	Amount   int    `json:"amount"`
+	Blknum   int      `json:"blknum"`
+	Txindex  int      `json:"txindex"`
+	Oindex   int      `json:"oindex"`
+	UtxoPos  *big.Int `json:"utxo_pos"`
+	Owner    string   `json:"owner"`
+	Currency string   `json:"currency"`
+	Amount   float64  `json:"amount"`
 }
 type Outputs struct {
-	Amount   int    `json:"amount"`
-	Currency string `json:"currency"`
-	Owner    string `json:"owner"`
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency"`
+	Owner    string  `json:"owner"`
 }
 type Fee struct {
-	Amount   uint   `json:"amount"`
+	Amount   uint64 `json:"amount"`
 	Currency string `json:"currency"`
 }
 type EIP712Domain struct {
@@ -126,24 +124,24 @@ type Input3 struct {
 	Oindex  int `json:"oindex"`
 }
 type Output0 struct {
-	Owner    string `json:"owner"`
-	Currency string `json:"currency"`
-	Amount   int    `json:"amount"`
+	Owner    string  `json:"owner"`
+	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount"`
 }
 type Output1 struct {
-	Owner    string `json:"owner"`
-	Currency string `json:"currency"`
-	Amount   int    `json:"amount"`
+	Owner    string  `json:"owner"`
+	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount"`
 }
 type Output2 struct {
-	Owner    string `json:"owner"`
-	Currency string `json:"currency"`
-	Amount   int    `json:"amount"`
+	Owner    string  `json:"owner"`
+	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount"`
 }
 type Output3 struct {
-	Owner    string `json:"owner"`
-	Currency string `json:"currency"`
-	Amount   int    `json:"amount"`
+	Owner    string  `json:"owner"`
+	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount"`
 }
 type Message struct {
 	Input0   Input0  `json:"input0"`
@@ -221,6 +219,28 @@ type TransactionSubmitFailureResponse struct {
 	} `json:"data"`
 }
 
+type TransactionGetResponse struct {
+	Version string    `json:"version"`
+	Success bool      `json:"success"`
+	Data    GetTxData `json:"data"`
+}
+type Block struct {
+	Timestamp int    `json:"timestamp"`
+	Hash      string `json:"hash"`
+	EthHeight int    `json:"eth_height"`
+	Blknum    int    `json:"blknum"`
+}
+
+type GetTxData struct {
+	Txindex  int       `json:"txindex"`
+	Txhash   string    `json:"txhash"`
+	Metadata string    `json:"metadata"`
+	Txbytes  string    `json:"txbytes"`
+	Block    Block     `json:"block"`
+	Inputs   []Inputs  `json:"inputs"`
+	Outputs  []Outputs `json:"outputs"`
+}
+
 type SingleSigner struct {
 	ToSign     []byte
 	PrivateKey string
@@ -233,34 +253,18 @@ func NewCreateTransaction() CreateTransaction {
 
 //CreateTransaction creates a transaction by calling `/transaction.create` endpoint
 func (c *CreateTransaction) CreateTransaction() (*CreateTransactionResponse, error) {
-	// Build request
-	var url strings.Builder
-	url.WriteString(c.WatcherEndpoint)
-	url.WriteString("/transaction.create")
-	js, _ := json.Marshal(c)
-	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
-	if err != nil {
-		log.Fatal(err)
-	}
-	r.Header.Add("Content-Type", "application/json")
-
-	// Make the request
 	client := &http.Client{}
-	resp, err := client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Unmarshall the response
+	rstring, err := util.SendChChReq(
+		client,
+		c.WatcherEndpoint,
+		"/transaction.create",
+		c,
+	)
 	response := CreateTransactionResponse{}
-
-	rstring, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 	jsonErr := json.Unmarshal([]byte(rstring), &response)
-
 	if jsonErr != nil {
 		return nil, jsonErr
 	}
@@ -292,7 +296,7 @@ func (t *Transactions) GetTypedData() TypedData {
 }
 
 //CreateTypedTransaction takse domain, message and signatures, returns a typed transaction
-func CreateTypedTransaction(d Domain, m Message, sigs [][]byte, w string) (TypedTransaction, error) {
+func CreateTypedTransaction(d Domain, m Message, sigs [][]byte, w string) (*TypedTransaction, error) {
 	var hexsigs []string
 	var ttx TypedTransaction
 	for _, s := range sigs {
@@ -302,7 +306,7 @@ func CreateTypedTransaction(d Domain, m Message, sigs [][]byte, w string) (Typed
 	ttx.Message = m
 	ttx.Signatures = hexsigs
 	ttx.WatcherEndpoint = w
-	return ttx, nil
+	return &ttx, nil
 }
 
 //Sign will sign a has with a single private key
@@ -311,47 +315,63 @@ func (s SingleSigner) Sign() ([][]byte, error) {
 }
 
 //Submit takes a typed transaction and it to  "transaction.submit_typed/" endpoint
-func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
-	// Build request
-	var url strings.Builder
-	url.WriteString(t.WatcherEndpoint)
-	url.WriteString("/transaction.submit_typed")
-	js, _ := json.Marshal(t)
-	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
-	if err != nil {
-		log.Fatal(err)
-	}
-	r.Header.Add("Content-Type", "application/json")
-
-	// Make the request
+func (t TypedTransaction) Submit() (*TransactionSubmitResponse, error) {
 	client := &http.Client{}
-	resp, err := client.Do(r)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	// Unmarshall the response
+	rstring, err := util.SendChChReq(
+		client,
+		t.WatcherEndpoint,
+		"/transaction.submit_typed",
+		t,
+	)
 	response := TransactionSubmitResponse{}
 
-	rstring, err := ioutil.ReadAll(resp.Body)
+	// rstring, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// // Unmarshall the response
 	jsonErr := json.Unmarshal([]byte(rstring), &response)
 	if jsonErr != nil {
 		log.Warning("Could not unmarshal successful response from the Watcher")
 		errorInfo := TransactionSubmitFailureResponse{}
 		processError := json.Unmarshal([]byte(rstring), &errorInfo)
 		if processError != nil { // Response from the Watcher does not match a struct
-			log.Fatal("Unknown response from Watcher API")
-			panic("uh oh")
+			return nil, err
 		}
 		log.Warning("Unmarshalled JSON error response from the Watcher API")
 		log.Error(errorInfo)
 	}
+
+	return &response, nil
+}
+
+//Get transaction
+func GetTransaction(txHash string, watcher string) (*TransactionGetResponse, error) {
+	client := &http.Client{}
+	postData := map[string]interface{}{"id": txHash}
+	rstring, err := util.SendChChReq(
+		client,
+		watcher,
+		"/transaction.get",
+		postData,
+	)
+	response := TransactionGetResponse{}
+	jsonErr := json.Unmarshal([]byte(rstring), &response)
+	if jsonErr != nil {
+		log.Warning("Could not unmarshal successful response from the Watcher")
+		errorInfo := watcherError{}
+		processError := json.Unmarshal([]byte(rstring), &errorInfo)
+		if processError != nil { // Response from the Watcher does not match a struct
+			return nil, err
+		}
+	}
+
+	return &response, nil
+}
+
+//Display transaction.submit response
+func DisplaySubmitResponse(response *TransactionSubmitResponse) {
 	if response.Success == true {
-		log.Info(resp.Status)
 		log.Infof(
 			"\n Response:\n Success: %v \n Blknum: %v \n txindex: %v\n Txhash: %v",
 			response.Success,
@@ -360,7 +380,6 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 			response.Data.Txhash,
 		)
 	} else {
-		log.Info(resp.Status)
 		log.Fatalf(
 			"\n Error submitting transaction:\n Object: %v \n Code: %v \n Description: %v",
 			response.Data.Object,
@@ -368,12 +387,25 @@ func (t TypedTransaction) Submit() (TransactionSubmitResponse, error) {
 			response.Data.Description,
 		)
 	}
+}
 
-	return response, nil
+//Display transaction.get response
+func DisplayGetResponse(response *TransactionGetResponse) {
+	log.Infof(
+		"\n tx-index: %v ,\n tx-hash: %v,\n meta-data: %v,\n",
+		response.Data.Txindex,
+		response.Data.Txhash,
+		response.Data.Metadata,
+	)
+	//TODO find a prettier way to do this
+	log.Infof("tx-bytes: %v", response.Data.Txbytes)
+	log.WithFields(log.Fields{"Block": fmt.Sprintf("%+v", response.Data.Block)}).Info("Block Data")
+	log.WithFields(log.Fields{"inputs": fmt.Sprintf("%+v", response.Data.Inputs)}).Info("Inputs UTXOs")
+	log.WithFields(log.Fields{"outputs": fmt.Sprintf("%+v", response.Data.Outputs)}).Info("Outputs UTXOs")
 }
 
 //Submit function takes a plasma transaction interface and calls Submit
-func Submit(p PlasmaTransaction) (TransactionSubmitResponse, error) {
+func Submit(p PlasmaTransaction) (*TransactionSubmitResponse, error) {
 	return p.Submit()
 }
 

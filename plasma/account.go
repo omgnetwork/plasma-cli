@@ -15,11 +15,11 @@
 package plasma
 
 import (
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
-	"strings"
+	"math/big"
+
+	"github.com/omisego/plasma-cli/util"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -29,7 +29,7 @@ type WatcherUTXOsFromAddress struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
 	Data    []struct {
-		UtxoPos  int     `json:"utxo_pos"`
+		UtxoPos  *big.Int     `json:"utxo_pos"`
 		Txindex  int     `json:"txindex"`
 		Owner    string  `json:"owner"`
 		Oindex   int     `json:"oindex"`
@@ -72,33 +72,15 @@ func DisplayBalance(b *WatcherBalanceFromAddress) {
 
 // Retrieve the UTXOs associated with an address from the Watcher
 func GetUTXOsFromAddress(address string, w string) (*WatcherUTXOsFromAddress, error) {
-	// Build request
-	var url strings.Builder
-	url.WriteString(w)
-	url.WriteString("/account.get_utxos")
-	postData := map[string]interface{}{"address": address, "limit": "10000"}
-	js, _ := json.Marshal(postData)
-	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
-	if err != nil {
-		return nil, err
-	}
-	r.Header.Add("Content-Type", "application/json")
-
-	// Make the request
 	client := &http.Client{}
-	resp, err := client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Unmarshall the response
+	postData := map[string]interface{}{"address": address, "limit": "10000"}
+	rstring, err := util.SendChChReq(
+		client,
+		w,
+		"/account.get_utxos",
+		postData,
+	)
 	response := WatcherUTXOsFromAddress{}
-
-	rstring, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 	jsonErr := json.Unmarshal([]byte(rstring), &response)
 	if jsonErr != nil {
 		return nil, err
@@ -109,33 +91,15 @@ func GetUTXOsFromAddress(address string, w string) (*WatcherUTXOsFromAddress, er
 
 // Get balance for a certain address
 func GetBalance(address string, watcher string) (*WatcherBalanceFromAddress, error) {
-	// Build request
-	var url strings.Builder
-	url.WriteString(watcher)
-	url.WriteString("/account.get_balance")
-	postData := map[string]interface{}{"address": address}
-	js, _ := json.Marshal(postData)
-	r, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(js))
-	if err != nil {
-		return nil, err
-	}
-	r.Header.Add("Content-Type", "application/json")
-
-	// Make the request
 	client := &http.Client{}
-	resp, err := client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Unmarshall the response
+	postData := map[string]interface{}{"address": address}
+	rstring, err := util.SendChChReq(
+		client,
+		watcher,
+		"/account.get_balance",
+		postData,
+	)
 	response := WatcherBalanceFromAddress{}
-
-	rstring, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 	jsonErr := json.Unmarshal([]byte(rstring), &response)
 	if jsonErr != nil {
 		log.Warning("Could not unmarshal successful response from the Watcher")
