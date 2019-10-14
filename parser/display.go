@@ -124,3 +124,17 @@ func DisplaySubmitResponse(response *childchain.TransactionSubmitResponse) {
 		)
 	}
 }
+
+//Display transaction.get response
+func DisplayGetResponse(response *childchain.TransactionGetResponse) {
+	log.Infof(
+		"\n tx-index: %v ,\n tx-hash: %v,\n meta-data: %v,\n",
+		response.Data.Txindex,
+		response.Data.Txhash,
+		response.Data.Metadata,
+	)
+	log.Infof("tx-bytes: %v", response.Data.Txbytes)
+	log.Infof("Block data: %v", fmt.Sprintf("%+v", response.Data.Block))
+	log.Infof("Inputs: %v", fmt.Sprintf("%+v", response.Data.Inputs))
+	log.Infof("Outputs: %v", fmt.Sprintf("%+v", response.Data.Outputs))
+}

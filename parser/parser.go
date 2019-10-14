@@ -142,11 +142,15 @@ func ParseArgs() {
 		DisplaySubmitResponse(res)
 
 	case transaction.FullCommand():
-		gtx, err := plasma.GetTransaction(*txHash, *watcherURL)
+		chch, err := childchain.NewClient(*watcherURL, &http.Client{})
+		if err != nil {
+			log.Error(err)
+		}
+		gtx, err := chch.GetTransaction(*txHash)
 		if err != nil {
 			log.Errorf("got error: %v", err)
 		}
-		plasma.DisplayGetResponse(gtx)
+		DisplayGetResponse(gtx)
 	case exit.FullCommand():
 		//plasma_cli exit --utxo=1000000000 --privatekey=foo --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --watcher=ari.omg.network
 		s := plasma.StandardExit{UtxoPosition: util.ConvertStringToInt(*utxoPosition), Contract: *contractExit, PrivateKey: *exitPrivateKey, Client: *clientExit}
