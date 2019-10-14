@@ -15,7 +15,6 @@
 package parser
 
 import (
-	"encoding/hex"
 	"net/http"
 
 	"github.com/omisego/plasma-cli/childchain"
@@ -50,11 +49,11 @@ var (
 	to               = send.Flag("to", "Wallet address of the recipient").Required().String()
 	privatekey       = send.Flag("privatekey", "Privatekey from a wallet to send from").Required().String()
 	amount           = send.Flag("amount", "Amount to transact").Required().Uint64()
-	currency         = send.Flag("currency", "currency of the amount to send, default to ETH").Default(plasma.EthCurrency).String()
+	currency         = send.Flag("currency", "currency of the amount to send, default to ETH").Default(childchain.EthCurrency).String()
 	watcherSubmitURL = send.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
-	feetoken         = send.Flag("feetoken", "set the token to be used as transaction fee, default to ETH").Default(plasma.EthCurrency).String()
+	feetoken         = send.Flag("feetoken", "set the token to be used as transaction fee, default to ETH").Default(childchain.EthCurrency).String()
 	feeamount        = send.Flag("feeamount", "set the amount to be used as transaction fee, default to 0").Default("0").Uint64()
-	metadata         = send.Flag("metadata", "additional metadata to send with the transaction, up to 32 bytes").Default(plasma.DefaultMetadata).String()
+	metadata         = send.Flag("metadata", "additional metadata to send with the transaction, up to 32 bytes").Default(childchain.DefaultMetadata).String()
 
 	exit           = kingpin.Command("exit", "Standard exit a UTXO back to the root chain.")
 	watcherExitURL = exit.Flag("watcher", "FQDN of the Watcher in the format http://watcher.path.net").Required().String()
@@ -120,31 +119,28 @@ func ParseArgs() {
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
 		d.DepositToPlasmaContract()
 	case send.FullCommand():
-		//plasma_cli send --to --privatekey --amount --currency --watcher
-		p := plasma.NewCreateTransaction()
-		p.Owner = util.DeriveAddress(*privatekey)
-		p.Fee = plasma.Fee{Amount: *feeamount, Currency: *feetoken}
-		p.Metadata = *metadata
-		payment := plasma.Payments{
-			Amount:   *amount,
-			Owner:    *to,
-			Currency: *currency,
+		chch, err := childchain.NewClient(*watcherSubmitURL, &http.Client{})
+		if err != nil {
+			log.Errorf("unexpected error from creating new client: %v", err)
 		}
-		p.Payments = []plasma.Payments{payment}
-		p.WatcherEndpoint = *watcherSubmitURL
-		resp, _ := p.CreateTransaction()
+		ptx := chch.NewPaymentTx()
+		ptx.AddOwner(util.DeriveAddress(*privatekey))
+		ptx.AddPayment(*amount, *to, *currency)
+		ptx.AddMetadata(*metadata)
+		err = childchain.BuildTransaction(ptx)
+		if err != nil {
+			log.Errorf("unexpected error : %v", err)
+		}
+		_, err = childchain.SignTransaction(ptx, childchain.SignWithRawKeys(*privatekey))
+		if err != nil {
+			log.Errorf("unexpected error : %v", err)
+		}
+		res, err := childchain.SubmitTransaction(ptx)
+		if err != nil {
+			log.Errorf("unexpected error : %v", err)
+		}
+		DisplaySubmitResponse(res)
 
-		pk := *privatekey
-		hash, _ := hex.DecodeString(util.FilterZeroX(resp.Data.Transactions[0].GetToSignHash()))
-		signatures, _ := plasma.Sign(plasma.SingleSigner{ToSign: hash, PrivateKey: pk})
-		tx, _ := plasma.CreateTypedTransaction(
-			resp.Data.Transactions[0].GetTypedData().Domain,
-			resp.Data.Transactions[0].GetTypedData().Message,
-			signatures,
-			*watcherSubmitURL,
-		)
-		r, _ := plasma.Submit(tx)
-		plasma.DisplaySubmitResponse(r)
 	case transaction.FullCommand():
 		gtx, err := plasma.GetTransaction(*txHash, *watcherURL)
 		if err != nil {

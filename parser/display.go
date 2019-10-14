@@ -104,3 +104,23 @@ func DisplayByzantineEvents(b *childchain.WatcherStatus) ByzantineEventCounts {
 
 	return ByzantineEventCounts{NonCanonical: n, PiggyBack: p, UnchallengedExit: ue, InvalidExit: ie}
 }
+
+//Display transaction.submit response
+func DisplaySubmitResponse(response *childchain.TransactionSubmitResponse) {
+	if response.Success == true {
+		log.Infof(
+			"\n Response:\n Success: %v \n Blknum: %v \n txindex: %v\n Txhash: %v",
+			response.Success,
+			response.Data.Blknum,
+			response.Data.Txindex,
+			response.Data.Txhash,
+		)
+	} else {
+		log.Fatalf(
+			"\n Error submitting transaction:\n Object: %v \n Code: %v \n Description: %v",
+			response.Data.Object,
+			response.Data.Code,
+			response.Data.Description,
+		)
+	}
+}

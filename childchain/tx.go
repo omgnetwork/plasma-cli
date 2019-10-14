@@ -70,7 +70,7 @@ type Signer interface {
 
 // plasma transaction that can be submitted
 type Submitter interface {
-	SubmitTransaction() (TransactionSubmitResponse, error)
+	SubmitTransaction() (*TransactionSubmitResponse, error)
 }
 
 // build arbitrary transaction to prepare for signing
@@ -84,7 +84,7 @@ func SignTransaction(s Signer, sf SignerFunc) ([][]byte, error) {
 }
 
 //submit transaction with submitter interface
-func SubmitTransaction(s Submitter) (TransactionSubmitResponse, error) {
+func SubmitTransaction(s Submitter) (*TransactionSubmitResponse, error) {
 	return s.SubmitTransaction()
 }
 

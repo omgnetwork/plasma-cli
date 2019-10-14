@@ -60,28 +60,9 @@ func TestBuildPaymentTx(t *testing.T) {
 	if response.Transactions[0].Inputs[0].Currency != currencyWanted {
 		t.Errorf("Expected %v got %v", currencyWanted, response.Transactions[0].Inputs[0].Currency)
 	}
-	// _, err = paymenttx.SignTransaction(RawSignTransaction("0x21177622121076AF7D4DB47366B7B7F5F407B68615C6A134BB1CD0AF934F8224"))
-	SignTransaction(paymenttx, RawSignTransaction("0x21177622121076AF7D4DB47366B7B7F5F407B68615C6A134BB1CD0AF934F8224"))
+
 }
 
-//test signing payment
+//TODO test signing payment
 
-//test submit payment transaction
-// func TestSubmitTransaction(t *Testing.T) {
-// 	rs := `{ "version": "1.0", "success": true, "data": { "blknum": 123000, "txindex": 111, "txhash": "0xbdf562c24ace032176e27621073df58ce1c6f65de3b5932343b70ba03c72132d" } }`
-// 	blknumWanted := int(123000)
-// 	txIndexWanted := int(111)
-// 	txHash := "0xbdf562c24ace032176e27621073df58ce1c6f65de3b5932343b70ba03c72132d"
-// 	ms := createMockServer(t, rs, "/transaction.create", TypedTransaction{})
-// 	defer ms.Close()
-// 	sr := TypedTransaction{}
-// 	chch, err := NewClient(ms.URL, &http.Client{})
-// 	if err != nil {
-// 		t.Errorf("unexpected error from creating new client: %v", err)
-// 	}
-// 	if err != nil {
-// 		t.Errorf("expected no error, got %v", err)
-// 	}
-// 	paymenttx.Sign()
-
-// }
+//TODO test submit payment transaction

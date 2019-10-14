@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/omisego/plasma-cli/util"
 )
 
 //payment tx struct
@@ -139,7 +140,11 @@ func (p *PaymentTx) BuildTransaction() error {
 
 // Sign transaction takes in any Signing function and runs in on the Signhash
 func (p *PaymentTx) SignTransaction(signer SignerFunc) ([][]byte, error) {
-	sigs, err := signer([]byte(p.CreateTransactionResponse.Data.Transactions[0].SignHash))
+	signHashBytes, err := hex.DecodeString(util.FilterZeroX(p.CreateTransactionResponse.Data.Transactions[0].SignHash))
+	if err != nil {
+		return nil, fmt.Errorf("error signing transaction: %v", err)
+	}
+	sigs, err := signer(signHashBytes)
 	if err != nil {
 		return nil, fmt.Errorf("error signing transaction: %v", err)
 	}
