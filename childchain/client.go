@@ -28,12 +28,14 @@ type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// Child chain client
+// Client is a child chain
 type Client struct {
 	Watcher    *url.URL
 	HttpClient HttpClient
 }
 
+// ClientError is a general error message
+// expected from a Watcher response
 type ClientError struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -44,7 +46,8 @@ type ClientError struct {
 	} `json:"data"`
 }
 
-// Creates new instance of child chain client with a watcher endpoint
+// NewClient Creates new instance of child chain client with a watcher endpoint
+// and a HTTP client
 func NewClient(watcher string, httpclient HttpClient) (*Client, error) {
 	if watcher == "" {
 		return nil, fmt.Errorf("Error parsing watcher: %v", watcher)
@@ -59,11 +62,12 @@ func NewClient(watcher string, httpclient HttpClient) (*Client, error) {
 	return &Client{w, httpclient}, nil
 }
 
-// returns the watcher URL string
+// GetWatcher returns the watcher URL string
 func (c *Client) GetWatcher() string {
 	return c.Watcher.String()
 }
 
+// do sends a POST request to Watcher client
 func (c *Client) do(method string, postData interface{}) ([]byte, error) {
 	//build request
 	var url strings.Builder

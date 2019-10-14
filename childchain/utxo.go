@@ -19,6 +19,8 @@ import (
 	"math/big"
 )
 
+// StandardExitUTXOData is a response from
+// watcher from /utxo.get_exit_data endpoint
 type StandardExitUTXOData struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -30,6 +32,8 @@ type StandardExitUTXOData struct {
 	} `json:"data"`
 }
 
+// ChallengeUTXOData is a response from
+// watcher from /utxo.get_challenge_data endpoint
 type ChallengeUTXOData struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -41,8 +45,9 @@ type ChallengeUTXOData struct {
 	} `json:"data"`
 }
 
-//get exit data from watcher
-//Retrieve the UTXO exit data from the UTXO position
+// GetUTXOExitData from watcher based on utxo position
+// from /utxo.get_exit_data endpoint
+// to be used in rootchain exit function call
 func (c *Client) GetUTXOExitData(utxoPosition int) (*StandardExitUTXOData, error) {
 	postData := map[string]interface{}{"utxo_pos": utxoPosition}
 	rstring, err := c.do(
@@ -60,7 +65,9 @@ func (c *Client) GetUTXOExitData(utxoPosition int) (*StandardExitUTXOData, error
 	return &response, nil
 }
 
-//get challenge data from watcher
+// GetChallengeData from the watcher based on
+// UTXO position to be used in rootchain Challenge
+// function call
 func (c *Client) GetChallengeData(utxoPosition int) (*ChallengeUTXOData, error) {
 	postData := map[string]interface{}{"utxo_pos": utxoPosition}
 	rstring, err := c.do(

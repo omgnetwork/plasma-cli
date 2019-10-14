@@ -23,7 +23,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// UTXOs of an address returned from watcher
+// WatcherUTXOsFromAddress is a returned response from
+// calling account.get_utxos
 type WatcherUTXOsFromAddress struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -38,7 +39,8 @@ type WatcherUTXOsFromAddress struct {
 	} `json:"data"`
 }
 
-// balance of an address returned from watcher
+// WatcherBalanceFromAddress is a returned response from
+// calling account.get_balance
 type WatcherBalanceFromAddress struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -48,7 +50,8 @@ type WatcherBalanceFromAddress struct {
 	} `json:"data"`
 }
 
-// Retrieve the UTXOs associated with an address from the Watcher
+// GetUTXOsFromAddress Retrieve the UTXOs associated with an address
+// from the Watcher client
 func (c *Client) GetUTXOsFromAddress(address string) (*WatcherUTXOsFromAddress, error) {
 	if util.ValidateHex(address) != nil {
 		return nil, fmt.Errorf("error validating address in GetUTXOsFromAddress(): %v", util.ValidateHex(address))
@@ -67,7 +70,7 @@ func (c *Client) GetUTXOsFromAddress(address string) (*WatcherUTXOsFromAddress, 
 	return &response, nil
 }
 
-// Get balance for a certain address
+// GetBalance fetchs a balance for a certain address
 func (c *Client) GetBalance(address string) (*WatcherBalanceFromAddress, error) {
 	if util.ValidateHex(address) != nil {
 		return nil, fmt.Errorf("error validating address in GetBalance(): %v", util.ValidateHex(address))

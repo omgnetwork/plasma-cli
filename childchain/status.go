@@ -18,7 +18,8 @@ import (
 	"encoding/json"
 )
 
-//only displaying invalid exit details for now
+// WatcherStatus is a returned response from
+// calling status.get
 type WatcherStatus struct {
 	Data struct {
 		ByzantineEvents []struct {
@@ -49,7 +50,8 @@ type WatcherStatus struct {
 	Version string `json:"version"`
 }
 
-// Get the Watcher's status
+// GetWatcherStatus retrieves watcher status
+// via status.get API
 func (c *Client) GetWatcherStatus() (*WatcherStatus, error) {
 	rstring, err := c.do(
 		"/status.get",

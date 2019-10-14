@@ -11,4 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// package childchain implement all client functionalities to interact with
+// MoreVP child chain through Watcher's API
+//
+// example includes abilities to send transaction, get transaction, fetch balance
+// etc.
+
 package childchain

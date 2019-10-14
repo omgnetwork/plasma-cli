@@ -24,7 +24,9 @@ import (
 	"github.com/omisego/plasma-cli/util"
 )
 
-//payment tx struct
+// PaymentTx is a general P2P payment transaction
+// implemented using Watcher's set of convenience API
+// it can be used to transfer funds from one to many
 type PaymentTx struct {
 	Client                    *Client
 	CreateTransaction         CreateTransaction
@@ -33,6 +35,8 @@ type PaymentTx struct {
 	TypedTransaction          TypedTransaction
 }
 
+// CreateTransaction is a payload to be submitted
+// via transaction.create endpoint
 type CreateTransaction struct {
 	Owner    common.Address `json:"owner"`
 	Payments []Payment      `json:"payments"`
@@ -40,21 +44,25 @@ type CreateTransaction struct {
 	Metadata string         `json:"metadata"`
 }
 
-//payment struct
+// Payment specifies the amount,
+// currency and recipient of the output
 type Payment struct {
 	Amount   uint64         `json:"amount"`
 	Currency common.Address `json:"currency"`
 	Owner    common.Address `json:"owner"`
 }
 
-// Typed transaction to be submitted
+// TypedTransaction is a transaction
+// data to be submitted to
+// submit_typed endpoint
 type TypedTransaction struct {
 	Domain     Domain   `json:"domain"`
 	Message    Message  `json:"message"`
 	Signatures []string `json:"signatures"`
 }
 
-// Initialize a simple payment transaction with Fee and Metadata as a default value
+// NewPaymentTx nitialize a simple payment transaction
+// with zero ETH fee and empty metadata as a default value
 func (c *Client) NewPaymentTx() (p *PaymentTx) {
 	p = &PaymentTx{Client: c}
 	p.AddFee(0, EthCurrency)
@@ -62,7 +70,7 @@ func (c *Client) NewPaymentTx() (p *PaymentTx) {
 	return p
 }
 
-//add an owner to payment tx
+// AddOwner adds an owner address to payment tx
 func (p *PaymentTx) AddOwner(o string) error {
 	if !common.IsHexAddress(o) {
 		return fmt.Errorf("Owner is not a valid address")
@@ -71,7 +79,8 @@ func (p *PaymentTx) AddOwner(o string) error {
 	return nil
 }
 
-//add fee token and amount to payment tx
+// AddFee adds a fee currency and amount to be made
+// by owner from the transaction
 func (p *PaymentTx) AddFee(amount uint64, curr string) error {
 	if !common.IsHexAddress(curr) {
 		return fmt.Errorf("Fee currency is not a valid address")
@@ -80,13 +89,18 @@ func (p *PaymentTx) AddFee(amount uint64, curr string) error {
 	return nil
 }
 
-//add metadata to payment tx
+// AddMetadata adds a hex encoded metadata to the
+// transaction
 func (p *PaymentTx) AddMetadata(m string) error {
+	if len(m) != 66 {
+		return fmt.Errorf("invalid length metadata, got %v, wanted %v", len(m), 66)
+	}
 	p.CreateTransaction.Metadata = m
 	return nil
 }
 
-//add Payment to payment slice in payment tx
+// AddPayment add a payment output to be made to
+// a transaction
 func (p *PaymentTx) AddPayment(amount uint64, addr string, curr string) error {
 	if !common.IsHexAddress(addr) {
 		return fmt.Errorf("Recipient is not a valid address")
@@ -103,7 +117,10 @@ func (p *PaymentTx) AddPayment(amount uint64, addr string, curr string) error {
 	return nil
 }
 
-// Build transaction with simple payment transaction via transaction.create endpoint
+// BuildTransaction forms a transaction to be signed via transaction.create endpoint
+// NOTE: if response.Data.Result == "intermediate"
+// means payment cannot be completed in one transaction, this tx will automatically
+// performs a merge instead
 func (p *PaymentTx) BuildTransaction() error {
 	if len(p.CreateTransaction.Payments) == 0 {
 		return errors.New("not enough arguement to build transaction")
@@ -121,11 +138,6 @@ func (p *PaymentTx) BuildTransaction() error {
 		return jsonErr
 	}
 
-	// //payment cannot be completed in one transaction, this tx will perform a merge
-	// if response.Data.Result == "intermediate" {
-	// 	log.Info("enough balance to cover payment, but UTXOs are too small, this transaction will merge UTXOs..\n retry after confirmation")
-	// }
-
 	if response.Success == false {
 		return fmt.Errorf(
 			"Error creating transaction. \n Code: %v \n \n Description: %v",
@@ -138,7 +150,9 @@ func (p *PaymentTx) BuildTransaction() error {
 	return nil
 }
 
-// Sign transaction takes in any Signing function and runs in on the Signhash
+// SignTransaction takes in any Signer function
+// and uses it on the SignHash
+// a custom signing function can be used as input
 func (p *PaymentTx) SignTransaction(signer SignerFunc) ([][]byte, error) {
 	signHashBytes, err := hex.DecodeString(util.FilterZeroX(p.CreateTransactionResponse.Data.Transactions[0].SignHash))
 	if err != nil {
@@ -152,7 +166,9 @@ func (p *PaymentTx) SignTransaction(signer SignerFunc) ([][]byte, error) {
 	return sigs, nil
 }
 
-// build typed transaction to be submitted on /transaction.submit_typed endpoint
+// buildTypedTransaction is a private function to
+// form the TypedTransaction to be submitted
+//  on /transaction.submit_typed endpoint
 func (p *PaymentTx) buildTypedTransaction() error {
 	for _, s := range p.Signatures {
 		p.TypedTransaction.Signatures = append(p.TypedTransaction.Signatures, fmt.Sprintf("0x%v", hex.EncodeToString(s)))
@@ -163,7 +179,8 @@ func (p *PaymentTx) buildTypedTransaction() error {
 	return nil
 }
 
-//submit payment transaction through /transaction.submit_typed endpoint
+// SubmitTransaction submit payment transaction through
+// /transaction.submit_typed endpoint
 func (p *PaymentTx) SubmitTransaction() (*TransactionSubmitResponse, error) {
 	if err := p.buildTypedTransaction(); err != nil {
 		return nil, errors.New("error building typed transaction before submitting")

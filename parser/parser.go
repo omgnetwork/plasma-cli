@@ -41,7 +41,6 @@ var (
 	privateKey      = deposit.Flag("privatekey", "Private key of the account used to send funds into Plasma MoreVP").Required().String()
 	client          = deposit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 	contract        = deposit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
-	depositOwner    = deposit.Flag("owner", "Owner of the UTXOs").Required().String()
 	depositAmount   = deposit.Flag("amount", "Amount to deposit in wei").Required().Uint64()
 	depositCurrency = deposit.Flag("currency", "Currency of the deposit. Example: ETH").Required().String()
 
@@ -116,7 +115,7 @@ func ParseArgs() {
 		DisplayByzantineEvents(ws)
 	case deposit.FullCommand():
 		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377 --currency=ETH
-		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: *depositOwner, Currency: *depositCurrency}
+		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: util.DeriveAddress(*privatekey), Currency: *depositCurrency}
 		d.DepositToPlasmaContract()
 	case send.FullCommand():
 		chch, err := childchain.NewClient(*watcherSubmitURL, &http.Client{})
@@ -124,11 +123,17 @@ func ParseArgs() {
 			log.Errorf("unexpected error from creating new client: %v", err)
 		}
 		ptx := chch.NewPaymentTx()
-		ptx.AddOwner(util.DeriveAddress(*privatekey))
-		ptx.AddPayment(*amount, *to, *currency)
-		ptx.AddMetadata(*metadata)
-		err = childchain.BuildTransaction(ptx)
-		if err != nil {
+		if err = ptx.AddOwner(util.DeriveAddress(*privatekey)); err != nil {
+			log.Errorf("unexpected error from Adding owner: %v", err)
+		}
+		if err = ptx.AddPayment(*amount, *to, *currency); err != nil {
+			log.Errorf("unexpected error from Adding payment: %v", err)
+		}
+		if err = ptx.AddMetadata(*metadata); err != nil {
+			log.Errorf("unexpected error from Adding metadata: %v", err)
+		}
+
+		if err = childchain.BuildTransaction(ptx); err != nil {
 			log.Errorf("unexpected error : %v", err)
 		}
 		_, err = childchain.SignTransaction(ptx, childchain.SignWithRawKeys(*privatekey))

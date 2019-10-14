@@ -27,14 +27,18 @@ const (
 	MaxOutputs      = 4
 )
 
-//a type signer func can sign any transaction bytes
+// SignerFunc is any function that takes in raw byte
+// and return signature of type [][]byte
 type SignerFunc func([]byte) ([][]byte, error)
 
+// Fee is a amount and currency of transaction fee
 type Fee struct {
 	Amount   uint64         `json:"amount"`
 	Currency common.Address `json:"currency"`
 }
 
+// TransactionSubmitResponse is an expected
+// response from making transaction to watcher
 type TransactionSubmitResponse struct {
 	Version string `json:"version"`
 	Success bool   `json:"success"`
@@ -51,44 +55,50 @@ type TransactionSubmitResponse struct {
 	} `json:"data"`
 }
 
-// plasma transaction interface, can build, sign, submit
+// PlasmaTransaction interface, can build, sign, submit
 type PlasmaTransaction interface {
 	Builder
 	Signer
 	Submitter
 }
 
-// plasma transaction that can be built
+// Builder is a struct that can build
+// plasma tx
 type Builder interface {
 	BuildTransaction() error
 }
 
-// plasma transaction that can be signed
+// Signer is a struct that can sign
+// plasma tx
 type Signer interface {
 	SignTransaction(SignerFunc) ([][]byte, error)
 }
 
-// plasma transaction that can be submitted
+// Submitter is a struct that can
+// submit plasma tx
 type Submitter interface {
 	SubmitTransaction() (*TransactionSubmitResponse, error)
 }
 
-// build arbitrary transaction to prepare for signing
+// BuildTransaction to prepare for signing
 func BuildTransaction(b Builder) error {
 	return b.BuildTransaction()
 }
 
-//sign transaction with Signer interface and a signing function SignFunc
+// SignTransaction with Signer interface and a signing function SignFunc
+// agnostic to the actual implementation of signer function
 func SignTransaction(s Signer, sf SignerFunc) ([][]byte, error) {
 	return s.SignTransaction(sf)
 }
 
-//submit transaction with submitter interface
+// SubmitTransaction with submitter interface
 func SubmitTransaction(s Submitter) (*TransactionSubmitResponse, error) {
 	return s.SubmitTransaction()
 }
 
-// Sign with raw keys takes private key as raw strings and return a function of type SignerFunc
+// SignWithRawKeys takes private key as raw strings and return a function of type SignerFunc
+// NOTE: this is a default convenience function for signing, user should implement different
+// Signing function
 func SignWithRawKeys(keys ...string) SignerFunc {
 	return func(toSign []byte) ([][]byte, error) {
 		if len(keys) > MaxOutputs {
