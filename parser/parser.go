@@ -115,7 +115,7 @@ func ParseArgs() {
 		DisplayByzantineEvents(ws)
 	case deposit.FullCommand():
 		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377 --currency=ETH
-		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: util.DeriveAddress(*privatekey), Currency: *depositCurrency}
+		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: util.DeriveAddress(*privateKey), Currency: *depositCurrency}
 		d.DepositToPlasmaContract()
 	case send.FullCommand():
 		chch, err := childchain.NewClient(*watcherSubmitURL, &http.Client{})
@@ -123,13 +123,19 @@ func ParseArgs() {
 			log.Errorf("unexpected error from creating new client: %v", err)
 		}
 		ptx := chch.NewPaymentTx()
+
 		if err = ptx.AddOwner(util.DeriveAddress(*privatekey)); err != nil {
 			log.Errorf("unexpected error from Adding owner: %v", err)
 		}
+
 		if err = ptx.AddPayment(*amount, *to, *currency); err != nil {
 			log.Errorf("unexpected error from Adding payment: %v", err)
 		}
 		if err = ptx.AddMetadata(*metadata); err != nil {
+			log.Errorf("unexpected error from Adding metadata: %v", err)
+		}
+
+		if err = ptx.AddFee(*feeamount, *feetoken); err != nil {
 			log.Errorf("unexpected error from Adding metadata: %v", err)
 		}
 

@@ -200,7 +200,7 @@ func (p *PaymentTx) SubmitTransaction() (*TransactionSubmitResponse, error) {
 
 	if response.Success == false {
 		return nil, fmt.Errorf(
-			"Error submitting transaction. \n Code: %v \n \n Description: %v",
+			"Error submitting transaction. \n Code: %v \n Description: %v",
 			response.Data.Code,
 			response.Data.Description,
 		)

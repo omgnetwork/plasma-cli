@@ -14,7 +14,10 @@
 
 package childchain
 
-import "math/big"
+import (
+	"encoding/json"
+	"math/big"
+)
 
 type CreateTransactionResponse struct {
 	Version string `json:"version"`
@@ -41,19 +44,19 @@ type Transactions struct {
 }
 
 type Inputs struct {
-	Blknum   int      `json:"blknum"`
-	Txindex  int      `json:"txindex"`
-	Oindex   int      `json:"oindex"`
-	UtxoPos  *big.Int `json:"utxo_pos"`
-	Owner    string   `json:"owner"`
-	Currency string   `json:"currency"`
-	Amount   float64  `json:"amount"`
+	Blknum   int         `json:"blknum"`
+	Txindex  int         `json:"txindex"`
+	Oindex   int         `json:"oindex"`
+	UtxoPos  *big.Int    `json:"utxo_pos"`
+	Owner    string      `json:"owner"`
+	Currency string      `json:"currency"`
+	Amount   json.Number `json:"amount"`
 }
 
 type Outputs struct {
-	Amount   float64 `json:"amount"`
-	Currency string  `json:"currency"`
-	Owner    string  `json:"owner"`
+	Amount   json.Number `json:"amount"`
+	Currency string      `json:"currency"`
+	Owner    string      `json:"owner"`
 }
 
 type TypedData struct {
@@ -126,22 +129,22 @@ type Input3 struct {
 	Oindex  int `json:"oindex"`
 }
 type Output0 struct {
-	Owner    string  `json:"owner"`
-	Currency string  `json:"currency"`
-	Amount   float64 `json:"amount"`
+	Owner    string      `json:"owner"`
+	Currency string      `json:"currency"`
+	Amount   json.Number `json:"amount"`
 }
 type Output1 struct {
-	Owner    string  `json:"owner"`
-	Currency string  `json:"currency"`
-	Amount   float64 `json:"amount"`
+	Owner    string      `json:"owner"`
+	Currency string      `json:"currency"`
+	Amount   json.Number `json:"amount"`
 }
 type Output2 struct {
-	Owner    string  `json:"owner"`
-	Currency string  `json:"currency"`
-	Amount   float64 `json:"amount"`
+	Owner    string      `json:"owner"`
+	Currency string      `json:"currency"`
+	Amount   json.Number `json:"amount"`
 }
 type Output3 struct {
-	Owner    string  `json:"owner"`
-	Currency string  `json:"currency"`
-	Amount   float64 `json:"amount"`
+	Owner    string      `json:"owner"`
+	Currency string      `json:"currency"`
+	Amount   json.Number `json:"amount"`
 }

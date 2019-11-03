@@ -28,7 +28,8 @@ type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// Client is a child chain
+// Client is a childchain client that holds a 
+// Watcher endpoint and HttpClient
 type Client struct {
 	Watcher    *url.URL
 	HttpClient HttpClient
