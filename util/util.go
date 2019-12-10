@@ -35,10 +35,26 @@ type DepositParent struct {
 	UTXOOutputs []interface{}
 }
 
+//deposit parent for ALD
+type DepositParentAld struct {
+	TxType uint
+	UTXOInputs  []InputDeposit
+	UTXOOutputs []interface{}
+	MetaData common.Hash
+}
+
+
 type InputDeposit struct {
 	Txindex uint `json:"txindex"`
 	Oindex  uint `json:"oindex"`
 	Blknum  uint `json:"blknum"`
+}
+
+type DepositOwnershipALD struct {
+	OutputType uint64
+	OutputGuard common.Address
+	Token common.Address
+	Amount uint64
 }
 
 type DepositOwnership struct {
@@ -126,6 +142,46 @@ func convertStringToFloat64(value string) float64 {
 	}
 	return f
 }
+//Build the RLP encoded transaction for ALD contract 
+func BuildALDRLPInput(address, currency string, value, txtype uint64) []byte {
+	depositUTXOPositions := make([]InputDeposit, 0)
+	deposit := DepositParentAld{TxType: uint(txtype), MetaData: common.HexToHash(DefaultMetadata)}
+	/*
+	NULL_INPUT := Inputf87601c0efee0194bddeaee01f00e02c081d36c100d5dee723cb9e17940000000000000000000000000000000000000000822710b842307830303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030 
+Deposit{Blknum: 0, Txindex: 0, Oindex: 0}
+	for i := 0; i <= 4; i++ {
+		depositUTXOPositions = append(depositUTXOPositions, NULL_INPUT)
+	}
+*/
+	deposit.UTXOInputs = depositUTXOPositions
+
+	cur := common.HexToAddress(EthCurrency)
+	
+	// Define the UTXO ownership and currency of the deposit
+	ownership := DepositOwnershipALD{}
+	ownership.OutputGuard = common.HexToAddress(address)
+	ownership.Token = cur
+	ownership.Amount = value
+	ownership.OutputType = uint64(1)
+
+	UTXOOutputs := make([]interface{}, 0)
+	UTXOOutputs = append(UTXOOutputs, ownership)
+	/*
+	NULL_OUTPUT := DepositOwnershipALD{}
+	for i := 0; i <= 3; i++ {
+		UTXOOutputs = append(UTXOOutputs, NULL_OUTPUT)
+	}*/
+	deposit.UTXOOutputs = UTXOOutputs
+
+	// The actual RLP encoding happens here
+	rlpEncoded, rerr := rlp.EncodeToBytes(deposit)
+	if rerr != nil {
+		log.Fatal(rerr)
+	}
+
+	return rlpEncoded
+}
+
 
 // Build the RLP encoded input to the smart contract that
 // deposit() will accept. The format of the UTXO inputs, outputs,

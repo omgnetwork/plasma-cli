@@ -42,7 +42,8 @@ var (
 	client          = deposit.Flag("client", "Address of the Ethereum client. Infura and local node supported https://rinkeby.infura.io/v3/api_key or http://localhost:8545").Required().String()
 	contract        = deposit.Flag("contract", "Address of the Plasma MoreVP smart contract").Required().String()
 	depositAmount   = deposit.Flag("amount", "Amount to deposit in wei").Required().Uint64()
-	depositCurrency = deposit.Flag("currency", "Currency of the deposit. Example: ETH").Required().String()
+	depositCurrency = deposit.Flag("currency", "Currency of the deposit. Example: ETH").Default(childchain.EthCurrency).String()
+
 
 	send             = kingpin.Command("send", "Create a transaction on the OmiseGO Plasma MoreVP network")
 	to               = send.Flag("to", "Wallet address of the recipient").Required().String()
@@ -116,7 +117,7 @@ func ParseArgs() {
 	case deposit.FullCommand():
 		//plasma_cli deposit --privatekey=0x944A81BeECac91802787fBCFB9767FCBf81db1f5 --client=https://rinkeby.infura.io/v3/api_key --contract=0x457e2ec4ad356d3cb449e3bd4ba640d720c30377 --currency=ETH
 		d := plasma.PlasmaDeposit{PrivateKey: *privateKey, Client: *client, Contract: *contract, Amount: *depositAmount, Owner: util.DeriveAddress(*privateKey), Currency: *depositCurrency}
-		d.DepositToPlasmaContract()
+		d.DepositEthToPlasma()
 	case send.FullCommand():
 		chch, err := childchain.NewClient(*watcherSubmitURL, &http.Client{})
 		if err != nil {
