@@ -30,14 +30,10 @@ const (
 	DefaultMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"
 )
 
-type DepositParent struct {
-	UTXOInputs  []InputDeposit
-	UTXOOutputs []interface{}
-}
 
 //deposit parent for ALD
-type DepositParentAld struct {
-	TxType uint
+type DepositTransaction struct {
+	OutputType  uint
 	UTXOInputs  []InputDeposit
 	UTXOOutputs []interface{}
 	MetaData common.Hash
@@ -50,24 +46,13 @@ type InputDeposit struct {
 	Blknum  uint `json:"blknum"`
 }
 
-type DepositOwnershipALD struct {
+type DepositOutput struct {
 	OutputType uint64
 	OutputGuard common.Address
 	Token common.Address
 	Amount uint64
 }
 
-type DepositOwnership struct {
-	OwnerAddress common.Address
-	Currency     common.Address
-	Amount       uint64
-}
-
-type OutputUTXO struct {
-	Currency1 common.Address
-	Currency2 common.Address
-	Value     uint
-}
 
 //sign an already hashed tx bytes
 func SignHash(hashed []byte, privateKeys []string) ([][]byte, error) {
@@ -142,38 +127,23 @@ func convertStringToFloat64(value string) float64 {
 	}
 	return f
 }
-//Build the RLP encoded transaction for ALD contract 
+
+// Build a deposit transaction, consists of empty inputs
+// and a single output UTXO of a specified address, currency, value and transaction type 
 func BuildALDRLPInput(address, currency string, value, txtype uint64) []byte {
-	depositUTXOPositions := make([]InputDeposit, 0)
-	deposit := DepositParentAld{TxType: uint(txtype), MetaData: common.HexToHash(DefaultMetadata)}
-	/*
-	NULL_INPUT := Inputf87601c0efee0194bddeaee01f00e02c081d36c100d5dee723cb9e17940000000000000000000000000000000000000000822710b842307830303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030 
-Deposit{Blknum: 0, Txindex: 0, Oindex: 0}
-	for i := 0; i <= 4; i++ {
-		depositUTXOPositions = append(depositUTXOPositions, NULL_INPUT)
-	}
-*/
-	deposit.UTXOInputs = depositUTXOPositions
+	deposit := DepositTransaction{OutputType: uint(txtype), MetaData: common.HexToHash(DefaultMetadata)}
 
 	cur := common.HexToAddress(EthCurrency)
-	
-	// Define the UTXO ownership and currency of the deposit
-	ownership := DepositOwnershipALD{}
+	// create a single ownership output 
+	ownership := DepositOutput{}
 	ownership.OutputGuard = common.HexToAddress(address)
 	ownership.Token = cur
 	ownership.Amount = value
-	ownership.OutputType = uint64(1)
-
+	ownership.OutputType = txtype
+	// we skip making inputs in ALD
 	UTXOOutputs := make([]interface{}, 0)
 	UTXOOutputs = append(UTXOOutputs, ownership)
-	/*
-	NULL_OUTPUT := DepositOwnershipALD{}
-	for i := 0; i <= 3; i++ {
-		UTXOOutputs = append(UTXOOutputs, NULL_OUTPUT)
-	}*/
 	deposit.UTXOOutputs = UTXOOutputs
-
-	// The actual RLP encoding happens here
 	rlpEncoded, rerr := rlp.EncodeToBytes(deposit)
 	if rerr != nil {
 		log.Fatal(rerr)
@@ -182,53 +152,6 @@ Deposit{Blknum: 0, Txindex: 0, Oindex: 0}
 	return rlpEncoded
 }
 
-
-// Build the RLP encoded input to the smart contract that
-// deposit() will accept. The format of the UTXO inputs, outputs,
-// and ownership data is critical. If any value is incorrect the
-// deposit will be rejected by the smart contract and transaction
-// reversed. The correct format is:
-// [[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],[[owner_public, eth_raw, 10], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0], [eth_raw, eth_raw, 0]]]
-// where eth_raw is 20 bytes of 0.
-func BuildRLPInput(address, currency string, value uint64) []byte {
-	depositUTXOPositions := make([]InputDeposit, 0)
-	deposit := DepositParent{}
-
-	NULL_INPUT := InputDeposit{Blknum: 0, Txindex: 0, Oindex: 0}
-	for i := 0; i <= 4; i++ {
-		depositUTXOPositions = append(depositUTXOPositions, NULL_INPUT)
-	}
-	deposit.UTXOInputs = depositUTXOPositions
-
-	cur := common.HexToAddress("0000000000000000000000000000000000000000")
-
-	if currency == "JCO" {
-		cur = common.HexToAddress("070FB0a42F61df2db440f15cC75bECB97CaD9c26")
-	}
-
-	// Define the UTXO ownership and currency of the deposit
-	ownership := DepositOwnership{}
-	ownership.OwnerAddress = common.HexToAddress(address)
-	ownership.Currency = cur
-	ownership.Amount = value
-
-	UTXOOutputs := make([]interface{}, 0)
-	UTXOOutputs = append(UTXOOutputs, ownership)
-
-	NULL_OUTPUT := OutputUTXO{Currency1: cur, Currency2: cur, Value: 0}
-	for i := 0; i <= 3; i++ {
-		UTXOOutputs = append(UTXOOutputs, NULL_OUTPUT)
-	}
-	deposit.UTXOOutputs = UTXOOutputs
-
-	// The actual RLP encoding happens here
-	rlpEncoded, rerr := rlp.EncodeToBytes(deposit)
-	if rerr != nil {
-		log.Fatal(rerr)
-	}
-
-	return rlpEncoded
-}
 
 // Add the full time include timezone into log messages
 // INFO[2019-01-31T16:38:57+07:00]

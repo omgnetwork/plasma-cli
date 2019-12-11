@@ -239,7 +239,7 @@ func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract
 	}
 }
 // Deposit ETH into Plasma MoreVP ALD contract 
-func (d *PlasmaDeposit) DepositEthToPlasma() {
+func (d *PlasmaDeposit) DepositEthToPlasma() (string, error){
 client, err := ethclient.Dial(d.Client)
 	if err != nil {
 		log.Fatal(err)
@@ -275,8 +275,7 @@ client, err := ethclient.Dial(d.Client)
 
 	address := common.HexToAddress(d.Contract)
 	rlpInputs := util.BuildALDRLPInput(util.RemoveLeadingZeroX(d.Owner), d.Currency, d.Amount, 1)
-	log.Info(hex.EncodeToString(rlpInputs)) // log out RLP inputs 
-	instance, err := NewEthvault(address, client)
+	instance, err := rootchain.NewEthvault(address, client)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -286,67 +285,13 @@ client, err := ethclient.Dial(d.Client)
 	t.Value = big.NewInt(int64(d.Amount))
 	tx, err := instance.Deposit(t, rlpInputs)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	} else {
-		log.Info("Deposit to Plasma MoreVP contract sent. Transaction: ", tx.Hash().Hex())
+		return	tx.Hash().Hex(), nil
 	}
+
 }
 
-
-
-// Deposit ETH into the already deployed Plasma MoreVP contract on Ethereum
-func (d *PlasmaDeposit) DepositToPlasmaContract() {
-	client, err := ethclient.Dial(d.Client)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	privateKey, err := crypto.HexToECDSA(util.FilterZeroX(d.PrivateKey))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("Cannot assert type: publicKey is not of type *ecdsa.PublicKey")
-	}
-
-	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	}
-	auth := bind.NewKeyedTransactor(privateKey)
-	auth.Nonce = big.NewInt(int64(nonce))
-
-	auth.Value = big.NewInt(int64(d.Amount)) // in wei
-	auth.GasLimit = uint64(210000)           // in units
-	auth.GasPrice = gasPrice
-
-	address := common.HexToAddress(d.Contract)
-
-	rlpInputs := util.BuildRLPInput(util.RemoveLeadingZeroX(d.Owner), d.Currency, d.Amount)
-	instance, err := rootchain.NewRootchain(address, client)
-	if err != nil {
-		log.Fatal(err)
-	}
-	t := &bind.TransactOpts{}
-	t.From = fromAddress
-	t.Signer = auth.Signer
-	t.Value = big.NewInt(int64(d.Amount))
-	tx, err := instance.Deposit(t, rlpInputs)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Info("Deposit to Plasma MoreVP contract sent. Transaction: ", tx.Hash().Hex())
-	}
-}
 
 // Calls the processExits in the Plasma smart contract to start processing exits that
 // have completed the challenge period.

@@ -28,6 +28,11 @@ type ByzantineEventCounts struct {
 	InvalidExit      int
 }
 
+// log any Ethereum transaction data
+func DisplayEthTransaction(description, txhash string) {
+	log.Info(description, txhash)
+}
+
 // log the UTXO data in a human friendly format
 func DisplayUTXOS(u *childchain.WatcherUTXOsFromAddress) {
 	for _, value := range u.Data {
