@@ -120,8 +120,9 @@ func ParseArgs() {
 		res, err := d.DepositEthToPlasma()
 		if err != nil {
 			log.Error(err)
+		} else {
+			DisplayEthTransaction("Deposit successful, txhash: ", res)
 		}
-		DisplayEthTransaction("Deposit successful, txhash: ", res)
 	case send.FullCommand():
 		chch, err := childchain.NewClient(*watcherSubmitURL, &http.Client{})
 		if err != nil {
@@ -176,7 +177,7 @@ func ParseArgs() {
 		//plasma_cli process --contract=0x5bb7f2492487556e380e0bf960510277cdafd680 --token 0x0 --privatekey=foo --client=https://rinkeby.infura.io/v3/api_key
 		p := plasma.ProcessExit{Contract: *processContract, PrivateKey: *processPrivateKey, Token: *processToken, Client: *processExitClient}
 		log.Info("Calling process exits in the Plasma contract")
-		plasma.ProcessExits(100, p)
+		plasma.ProcessExits(1, 1, p)
 	case createAccount.FullCommand():
 		//plasma_cli create account
 		log.Info("Generating Keypair")

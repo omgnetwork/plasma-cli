@@ -15,51 +15,108 @@
 package plasma 
 
 import (
-	"net/http"
-
-	"github.com/omisego/plasma-cli/childchain"
-	"github.com/omisego/plasma-cli/plasma"
-	"github.com/omisego/plasma-cli/util"
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"testing"
+	"github.com/omisego/plasma-cli/util"
+	"fmt"
+	"os"
+	"strconv"
+	"github.com/joho/godotenv"
 )
 
-func testDeposit(t *testing.T ) {
-	d := plasma.PlasmaDeposit{PrivateKey: "0x598A2B06880B65CAA7C93A081D3A6235D7C667D18C81E8A14F918FC7D2C8270F", Client:"https://rinkeby.infura.io/v3/e2d2eee81e774cd3a4915d994dfec840" , Contract: "0x9631a230eaf33b51012fca494e4030d852bb9386", Amount: 1000, Owner: util.DeriveAddress("0x598A2B06880B65CAA7C93A081D3A6235D7C667D18C81E8A14F918FC7D2C8270F"), Currency: childchain.EthCurrency}
-	d.DepositEthToPlasma()
-	chch, err := childchain.NewClient(*watcherSubmitURL, &http.Client{})
-	if err != nil {
-		log.Errorf("unexpected error from creating new client: %v", err)
-	}
-	ptx := chch.NewPaymentTx()
-
-	if err = ptx.AddOwner(util.DeriveAddress(privatekey)); err != nil {
-		log.Errorf("unexpected error from Adding owner: %v", err)
-	}
-
-	if err = ptx.AddPayment(*amount, *to, *currency); err != nil {
-		log.Errorf("unexpected error from Adding payment: %v", err)
-	}
-	if err = ptx.AddMetadata(*metadata); err != nil {
-		log.Errorf("unexpected error from Adding metadata: %v", err)
-	}
-
-	if err = ptx.AddFee(*feeamount, *feetoken); err != nil {
-		log.Errorf("unexpected error from Adding metadata: %v", err)
-	}
-
-	if err = childchain.BuildTransaction(ptx); err != nil {
-		t.Errorf("unexpected error : %v", err)
-	} 
-	// _, err = childchain.SignTransaction(ptx, childchain.SignWithRawKeys(*privatekey))
-	// if err != nil {
-	// 	log.Errorf("unexpected error : %v", err)
-	// }
-	// res, err := childchain.SubmitTransaction(ptx)
-	// if err != nil {
-	// 	log.Errorf("unexpected error : %v", err)
-	// }
+type TestEnv struct {
+	Watcher, Privatekey, Publickey, EthClient, EthVault, ExitGame, PlasmaFramework string
+	UtxoPos, DepositAmount, ExitToProcess int
 
 }
 
+func getEnvAsInt(name string, defaultVal int) int {
+	valueStr := os.Getenv(name)
+	if value, err := strconv.Atoi(valueStr); err == nil {
+		return value
+	}
+
+	return defaultVal
+}
+
+func loadTestEnv() (*TestEnv, error){
+	err := godotenv.Load("./integration_test.env")
+	if err != nil {
+		return nil, fmt.Errorf("error loading env in test: %v", err)
+	}
+	env := TestEnv{
+		Watcher: os.Getenv("WATCHER"),
+		Privatekey: os.Getenv("PRIVKEY"),
+		Publickey: os.Getenv("PUBKEY"),
+		EthClient: os.Getenv("ETH_CLIENT"),
+		EthVault: os.Getenv("ETH_VAULT_CONTRACT"),
+		ExitGame: os.Getenv("EXIT_GAME_CONTRACT"),
+		PlasmaFramework: os.Getenv("PLASMA_FRAMEWORK_CONTRACT"),
+		UtxoPos: getEnvAsInt("UTXO_POS_FOR_EXIT", 1),
+		DepositAmount: getEnvAsInt("DEPOSIT_AMOUNT",1),
+		ExitToProcess: getEnvAsInt("EXIT_TO_PROCESS",1),
+	}
+	return &env, nil
+}
+func TestGetStandardExitBond(t *testing.T) {
+	env, err := loadTestEnv()
+	if err != nil {
+		t.Errorf("error loading test env in get exit bond test: %v", err)
+	}
+	res, err := GetStandardExitBond(env.EthClient, env.ExitGame, env.Privatekey)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+	fmt.Printf("exit bond value: %v", res)
+}
+
+func TestStartStandardExit(t *testing.T){
+	env, err := loadTestEnv()
+	if err != nil {
+		t.Errorf("error loading test env in standard exit test: %v", err)
+	}
+	// get standard exit bond
+	bond, err := GetStandardExitBond(env.EthClient, env.ExitGame, env.Privatekey)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+	// get exit UTXO info from watcher
+	exit, err := GetUTXOExitData(env.Watcher, env.UtxoPos)
+	if err != nil {
+t.Errorf("unexpected error from getting UTXO exit data %v", err)
+	}
+	// call start standard exit 
+	res, err := exit.StartStandardExit(env.EthClient, env.ExitGame, env.Privatekey, bond)
+	if err != nil {
+t.Errorf("unexpected error from, starting exit: %v", err)
+	}
+	fmt.Printf("standard exit tx hash: %s \n", res)
+}
+
+func TestDepositEth(t *testing.T) {
+	env, err := loadTestEnv()
+	if err != nil {
+		t.Errorf("error loading test env in standard exit test: %v", err)
+	}
+
+	d := PlasmaDeposit{PrivateKey: env.Privatekey, Client: env.EthClient, Contract: env.EthVault, Amount: uint64(env.DepositAmount), Owner: util.DeriveAddress(env.Privatekey), Currency: util.EthCurrency}
+	res,  err := d.DepositEthToPlasma()
+	if err != nil {
+		t.Error(err)
+	} 
+	fmt.Printf("deposit tx hash: %s \n", res)
+}
+
+func TestProcessExit(t *testing.T) {
+	env, err := loadTestEnv()
+	if err != nil {
+		t.Errorf("error loading test env in standard exit test: %v", err)
+	}
+
+	p := ProcessExit{Contract: env.PlasmaFramework, PrivateKey: env.Privatekey, Token: util.EthCurrency, Client: env.EthClient}
+	res, err := ProcessExits(1, int64(env.ExitToProcess), p)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Printf("process exit tx hash: %s \n", res)
+
+}

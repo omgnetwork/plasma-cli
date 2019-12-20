@@ -16,6 +16,7 @@ require (
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/huin/goupnp v1.0.0 // indirect
+	github.com/joho/godotenv v1.3.0
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/prometheus/tsdb v0.9.1 // indirect

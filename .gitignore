@@ -15,3 +15,6 @@ plasma-cli
 #vim .swp vscode
 *.swp
 .vscode
+
+#env variables
+*.env

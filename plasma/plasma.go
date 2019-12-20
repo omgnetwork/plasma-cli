@@ -135,8 +135,13 @@ func (s *StandardExit) StartStandardExit(watcher string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	exit.StartStandardExit(s.Client, s.Contract, s.PrivateKey)
+	bond, err := GetStandardExitBond(s.Client, s.Contract, s.PrivateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	exit.StartStandardExit(s.Client, s.Contract, s.PrivateKey, bond)
 }
+
 
 //Retrieve the UTXO exit data from the UTXO position
 func GetUTXOExitData(watcher string, utxoPosition int) (StandardExitUTXOData, error) {
@@ -178,7 +183,7 @@ func GetUTXOExitData(watcher string, utxoPosition int) (StandardExitUTXOData, er
 }
 
 // Start standard exit by calling the method in the smart contract
-func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract string, private string) {
+func (s *StandardExitUTXOData) StartStandardExit(ethereumClient , contract , private string, bondsize *big.Int) (string, error) {
 	client, err := ethclient.Dial(ethereumClient)
 	if err != nil {
 		log.Fatal(err)
@@ -212,14 +217,14 @@ func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract
 	auth.GasPrice = gasPrice
 
 	address := common.HexToAddress(contract)
-	instance, err := rootchain.NewRootchain(address, client)
+	instance, err := rootchain.NewPaymentExitGame(address, client)
 	if err != nil {
 		log.Fatal(err)
 	}
 	t := &bind.TransactOpts{}
 	t.From = fromAddress
 	t.Signer = auth.Signer
-	t.Value = big.NewInt(31415926535) //STANDARD_EXIT_BOND in the smart contract
+	t.Value = bondsize //STANDARD_EXIT_BOND in the smart contract
 	t.GasLimit = 2000000
 
 	txBytesHex, txErr := hex.DecodeString(util.RemoveLeadingZeroX(s.Data.Txbytes))
@@ -231,13 +236,66 @@ func (s *StandardExitUTXOData) StartStandardExit(ethereumClient string, contract
 	if proofErr != nil {
 		log.Fatal(proofErr)
 	}
-	tx, err := instance.StartStandardExit(t, s.Data.UtxoPos, []byte(txBytesHex), []byte(proofBytesHex))
+	seargs := rootchain.PaymentStandardExitRouterArgsStartStandardExitArgs{
+		UtxoPos: s.Data.UtxoPos,
+		RlpOutputTx: []byte(txBytesHex),
+		OutputGuardPreimage: []byte{},
+		OutputTxInclusionProof: []byte(proofBytesHex),
+	} 
+	tx, err := instance.StartStandardExit(t, seargs) 
+	if err != nil {
+		return "", err
+	} 
+	return tx.Hash().Hex(), nil 
+}
+
+// get standard exit bond 
+func GetStandardExitBond(rootchainclient, contract, pkey string) (*big.Int, error){
+client, err := ethclient.Dial(rootchainclient)
 	if err != nil {
 		log.Fatal(err)
-	} else {
-		log.Info("Standard exit to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
 	}
+
+	privateKey, err := crypto.HexToECDSA(util.FilterZeroX(pkey))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("Cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	auth := bind.NewKeyedTransactor(privateKey)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.GasLimit = uint64(6000000)           // in units
+	auth.GasPrice = gasPrice
+
+	address := common.HexToAddress(contract)
+	instance, err := rootchain.NewPaymentExitGame(address, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	c := &bind.CallOpts{}
+	amount, err := instance.StartStandardExitBondSize(c)
+	if err != nil {
+		return nil, err
+	} 
+	return	amount, nil
+
 }
+
 // Deposit ETH into Plasma MoreVP ALD contract 
 func (d *PlasmaDeposit) DepositEthToPlasma() (string, error){
 client, err := ethclient.Dial(d.Client)
@@ -274,7 +332,7 @@ client, err := ethclient.Dial(d.Client)
 	auth.GasPrice = gasPrice
 
 	address := common.HexToAddress(d.Contract)
-	rlpInputs := util.BuildALDRLPInput(util.RemoveLeadingZeroX(d.Owner), d.Currency, d.Amount, 1)
+	rlpInputs := util.BuildRLPDeposit(util.RemoveLeadingZeroX(d.Owner), d.Currency, d.Amount, 1)
 	instance, err := rootchain.NewEthvault(address, client)
 	if err != nil {
 		log.Fatal(err)
@@ -295,7 +353,7 @@ client, err := ethclient.Dial(d.Client)
 
 // Calls the processExits in the Plasma smart contract to start processing exits that
 // have completed the challenge period.
-func ProcessExits(numberExitsToProcess int64, p ProcessExit) {
+func ProcessExits(vaultID, numberExitsToProcess int64, p ProcessExit) (string, error) {
 	client, err := ethclient.Dial(p.Client)
 	if err != nil {
 		log.Fatal(err)
@@ -331,9 +389,9 @@ func ProcessExits(numberExitsToProcess int64, p ProcessExit) {
 	contractAddress := p.Contract
 
 	address := common.HexToAddress(contractAddress)
-	instance, err := rootchain.NewRootchain(address, client)
+	instance, err := rootchain.NewPlasmaFramework(address, client)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	t := &bind.TransactOpts{}
 	t.From = fromAddress
@@ -343,11 +401,11 @@ func ProcessExits(numberExitsToProcess int64, p ProcessExit) {
 
 	token := common.HexToAddress(p.Token)
 
-	tx, err := instance.ProcessExits(t, token, big.NewInt(0), big.NewInt(numberExitsToProcess))
+	tx, err := instance.ProcessExits(t, big.NewInt(vaultID), token, big.NewInt(0), big.NewInt(numberExitsToProcess))
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	} else {
-		log.Info("Process exits request to Plasma MoreVP sent. Transaction: ", tx.Hash().Hex())
+		return tx.Hash().Hex(), nil
 	}
 }
 
